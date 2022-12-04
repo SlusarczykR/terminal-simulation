@@ -6,17 +6,22 @@ import com.slusarczykr.terminal.simulation.model.Passenger;
 import deskit.SimActivity;
 import deskit.SimObject;
 import deskit.monitors.MonitoredVar;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SimulationCoordinator extends SimObject {
 
+    private static final Logger log = LogManager.getLogger(SimulationCoordinator.class);
+
     public final MonitoredVar serviceTime;
     public final MonitoredVar waitingTime;
     public final MonitoredVar queueLength;
 
-    private final ConcurrentLinkedQueue<Passenger> queue;
+    private final Queue<Passenger> queue;
     private final AtomicBoolean occupied = new AtomicBoolean(false);
 
     private final SimActivity generatePassengerActivity;
@@ -31,18 +36,22 @@ public class SimulationCoordinator extends SimObject {
         this.servicePassengerActivity = new ServicePassengerActivity();
     }
 
-    public int addPassenger(Passenger passenger) {
+    public void addPassenger(Passenger passenger) {
+        log.info("Add passenger to queue: {}", passenger);
         queue.add(passenger);
-        return queue.size();
+        updateQueueSize();
     }
 
     public Passenger nextPassenger() {
-        queueLength.setValue(queue.size());
-        return queue.poll();
+        log.info("Poll passenger from the queue with size: {}", queue.size());
+        Passenger passenger = queue.poll();
+        updateQueueSize();
+
+        return passenger;
     }
 
-    public ConcurrentLinkedQueue<Passenger> getQueue() {
-        return queue;
+    public void updateQueueSize() {
+        this.queueLength.setValue(queue.size());
     }
 
     public boolean isOccupied() {
@@ -50,10 +59,12 @@ public class SimulationCoordinator extends SimObject {
     }
 
     public void blockQueue() {
+        log.info("Blocking the queue...");
         this.occupied.set(true);
     }
 
     public void freeQueue() {
+        log.info("Releasing the queue...");
         this.occupied.set(false);
     }
 
@@ -70,6 +81,7 @@ public class SimulationCoordinator extends SimObject {
     }
 
     public void setServiceTime(double delay) {
+        log.info("Set service time: {}", delay);
         serviceTime.setValue(delay);
     }
 
@@ -78,6 +90,7 @@ public class SimulationCoordinator extends SimObject {
     }
 
     public void setWaitingTime(double delay) {
+        log.info("Set waiting time: {}", delay);
         waitingTime.setValue(delay);
     }
 

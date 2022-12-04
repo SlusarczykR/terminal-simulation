@@ -10,4 +10,11 @@ public class Passenger {
     public double getGenerationTime() {
         return generationTime;
     }
+
+    @Override
+    public String toString() {
+        return "Passenger{" +
+                "generationTime=" + generationTime +
+                '}';
+    }
 }
