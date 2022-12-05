@@ -1,7 +1,10 @@
 package com.slusarczykr.terminal.simulation.coordinator;
 
+import com.slusarczykr.terminal.simulation.action.CheckInPassengerActivity;
 import com.slusarczykr.terminal.simulation.action.GeneratePassengerActivity;
-import com.slusarczykr.terminal.simulation.action.ServicePassengerActivity;
+import com.slusarczykr.terminal.simulation.action.SecurityCheckPassengerActivity;
+import com.slusarczykr.terminal.simulation.coordinator.PassengerQueue.QueueType;
+import com.slusarczykr.terminal.simulation.model.Flight;
 import com.slusarczykr.terminal.simulation.model.Passenger;
 import deskit.SimActivity;
 import deskit.SimObject;
@@ -9,71 +12,108 @@ import deskit.monitors.MonitoredVar;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.IntStream;
 
 public class SimulationCoordinator extends SimObject {
 
     private static final Logger log = LogManager.getLogger(SimulationCoordinator.class);
 
+    public static final int DEFAULT_FLIGHTS_NUMBER = 10;
+
     public final MonitoredVar serviceTime;
     public final MonitoredVar waitingTime;
     public final MonitoredVar queueLength;
 
-    private final Queue<Passenger> queue;
-    private final AtomicBoolean occupied = new AtomicBoolean(false);
+    private final Map<QueueType, PassengerQueue> passengerQueues;
+    private final Map<Integer, Flight> flights;
 
     private final SimActivity generatePassengerActivity;
-    private final SimActivity servicePassengerActivity;
+    private final SimActivity checkInPassengerActivity;
+    private final SimActivity securityCheckPassengerActivity;
 
     public SimulationCoordinator() {
         this.serviceTime = new MonitoredVar(this);
         this.waitingTime = new MonitoredVar(this);
         this.queueLength = new MonitoredVar(this);
-        this.queue = new ConcurrentLinkedQueue<>();
+        this.passengerQueues = initPassengerQueues();
+        this.flights = generateFlights();
         this.generatePassengerActivity = new GeneratePassengerActivity();
-        this.servicePassengerActivity = new ServicePassengerActivity();
+        this.checkInPassengerActivity = new CheckInPassengerActivity();
+        this.securityCheckPassengerActivity = new SecurityCheckPassengerActivity();
     }
 
-    public void addPassenger(Passenger passenger) {
-        log.info("Add passenger to queue: {}", passenger);
-        queue.add(passenger);
+    private Map<QueueType, PassengerQueue> initPassengerQueues() {
+        Map<QueueType, PassengerQueue> queueMap = new ConcurrentHashMap<>();
+        Arrays.stream(QueueType.values()).forEach(it -> {
+            PassengerQueue passengerQueue = new PassengerQueue(it, new MonitoredVar(this));
+            queueMap.put(it, passengerQueue);
+        });
+        return queueMap;
+    }
+
+    private Map<Integer, Flight> generateFlights() {
+        Map<Integer, Flight> generatedFlights = new ConcurrentHashMap<>();
+        IntStream.rangeClosed(1, DEFAULT_FLIGHTS_NUMBER)
+                .forEach(idx -> generatedFlights.put(idx, new Flight(idx)));
+
+        return generatedFlights;
+    }
+
+    public Optional<Flight> getFlight(int id) {
+        return Optional.ofNullable(flights.get(id));
+    }
+
+    public int getFlightsSize() {
+        return flights.size();
+    }
+
+    public void addPassenger(QueueType queueType, Passenger passenger) {
+        log.trace("Add passenger to queue: {}", passenger);
+        passengerQueues.get(queueType).add(passenger);
         updateQueueSize();
     }
 
-    public Passenger nextPassenger() {
-        log.info("Poll passenger from the queue with size: {}", queue.size());
-        Passenger passenger = queue.poll();
+    public Passenger nextPassenger(QueueType queueType) {
+        log.trace("Poll passenger from the queue with size: {}", passengerQueues.size());
+        Passenger passenger = passengerQueues.get(queueType).poll();
         updateQueueSize();
 
         return passenger;
     }
 
     public void updateQueueSize() {
-        this.queueLength.setValue(queue.size());
+        this.queueLength.setValue(passengerQueues.size());
     }
 
-    public boolean isOccupied() {
-        return occupied.get();
+
+    public void blockQueue(QueueType queueType) {
+        log.trace("Blocking '{}' queue...", queueType);
+        this.passengerQueues.get(queueType).blockQueue();
     }
 
-    public void blockQueue() {
-        log.info("Blocking the queue...");
-        this.occupied.set(true);
+    public void freeQueue(QueueType queueType) {
+        log.trace("Releasing '{}' queue...", queueType);
+        this.passengerQueues.get(queueType).freeQueue();
     }
 
-    public void freeQueue() {
-        log.info("Releasing the queue...");
-        this.occupied.set(false);
+    public boolean isOccupied(QueueType queueType) {
+        return passengerQueues.get(queueType).isOccupied();
     }
 
     public SimActivity getGeneratePassengerActivity() {
         return generatePassengerActivity;
     }
 
-    public SimActivity getServicePassengerActivity() {
-        return servicePassengerActivity;
+    public SimActivity getCheckInPassengerActivity() {
+        return checkInPassengerActivity;
+    }
+
+    public SimActivity getSecurityCheckPassengerActivity() {
+        return securityCheckPassengerActivity;
     }
 
     public MonitoredVar getServiceTime() {
@@ -81,7 +121,7 @@ public class SimulationCoordinator extends SimObject {
     }
 
     public void setServiceTime(double delay) {
-        log.info("Set service time: {}", delay);
+        log.trace("Set service time: {}", delay);
         serviceTime.setValue(delay);
     }
 
@@ -90,11 +130,11 @@ public class SimulationCoordinator extends SimObject {
     }
 
     public void setWaitingTime(double delay) {
-        log.info("Set waiting time: {}", delay);
+        log.trace("Set waiting time: {}", delay);
         waitingTime.setValue(delay);
     }
 
-    public int getQueueLength() {
-        return (int) queueLength.getValue();
+    public int getQueueLength(QueueType queueType) {
+        return passengerQueues.get(queueType).getLength();
     }
 }
