@@ -1,6 +1,5 @@
 package com.slusarczykr.terminal.simulation.model;
 
-import com.slusarczykr.terminal.simulation.action.DepartureFlightActivity;
 import deskit.SimActivity;
 import deskit.SimObject;
 import deskit.random.SimGenerator;
@@ -13,13 +12,13 @@ public class Flight extends SimObject {
     private final int id;
     private final Queue<Passenger> passengers;
     private final double departureTime;
-    private final SimActivity departureFlightActivity;
+    private final SimActivity departureFlightAction;
 
-    public Flight(int id) {
+    public Flight(int id, SimActivity departureFlightAction) {
         this.id = id;
         this.passengers = new ConcurrentLinkedQueue<>();
         this.departureTime = new SimGenerator().chisquare(50);
-        this.departureFlightActivity = new DepartureFlightActivity();
+        this.departureFlightAction = departureFlightAction;
     }
 
     public int getId() {
@@ -39,7 +38,7 @@ public class Flight extends SimObject {
     }
 
     public SimActivity getDepartureFlightActivity() {
-        return departureFlightActivity;
+        return departureFlightAction;
     }
 
     @Override

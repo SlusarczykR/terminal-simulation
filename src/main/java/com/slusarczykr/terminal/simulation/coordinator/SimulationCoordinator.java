@@ -1,9 +1,9 @@
 package com.slusarczykr.terminal.simulation.coordinator;
 
-import com.slusarczykr.terminal.simulation.action.CheckInPassengerActivity;
-import com.slusarczykr.terminal.simulation.action.GeneratePassengerActivity;
-import com.slusarczykr.terminal.simulation.action.SecurityCheckPassengerActivity;
-import com.slusarczykr.terminal.simulation.coordinator.PassengerQueue.QueueType;
+import com.slusarczykr.terminal.simulation.action.Action;
+import com.slusarczykr.terminal.simulation.action.ActionKey;
+import com.slusarczykr.terminal.simulation.action.DepartureFlightAction;
+import com.slusarczykr.terminal.simulation.action.queue.ActionQueue;
 import com.slusarczykr.terminal.simulation.model.Flight;
 import com.slusarczykr.terminal.simulation.model.Passenger;
 import deskit.SimActivity;
@@ -12,53 +12,35 @@ import deskit.monitors.MonitoredVar;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.IntStream;
+import java.util.function.Function;
 
-public class SimulationCoordinator extends SimObject {
+import static java.util.stream.IntStream.rangeClosed;
+
+public class SimulationCoordinator<T> extends SimObject {
 
     private static final Logger log = LogManager.getLogger(SimulationCoordinator.class);
 
     public static final int DEFAULT_FLIGHTS_NUMBER = 10;
 
-    public final MonitoredVar serviceTime;
-    public final MonitoredVar waitingTime;
-    public final MonitoredVar queueLength;
-
-    private final Map<QueueType, PassengerQueue> passengerQueues;
+    private final Map<ActionKey, Action<T>> actions;
     private final Map<Integer, Flight> flights;
 
-    private final SimActivity generatePassengerActivity;
-    private final SimActivity checkInPassengerActivity;
-    private final SimActivity securityCheckPassengerActivity;
-
-    public SimulationCoordinator() {
-        this.serviceTime = new MonitoredVar(this);
-        this.waitingTime = new MonitoredVar(this);
-        this.queueLength = new MonitoredVar(this);
-        this.passengerQueues = initPassengerQueues();
+    public SimulationCoordinator(Function<SimulationCoordinator<T>, Map<ActionKey, Action<T>>> actionsSupplier) {
+        this.actions = actionsSupplier.apply(this);
         this.flights = generateFlights();
-        this.generatePassengerActivity = new GeneratePassengerActivity();
-        this.checkInPassengerActivity = new CheckInPassengerActivity();
-        this.securityCheckPassengerActivity = new SecurityCheckPassengerActivity();
-    }
-
-    private Map<QueueType, PassengerQueue> initPassengerQueues() {
-        Map<QueueType, PassengerQueue> queueMap = new ConcurrentHashMap<>();
-        Arrays.stream(QueueType.values()).forEach(it -> {
-            PassengerQueue passengerQueue = new PassengerQueue(it, new MonitoredVar(this));
-            queueMap.put(it, passengerQueue);
-        });
-        return queueMap;
     }
 
     private Map<Integer, Flight> generateFlights() {
         Map<Integer, Flight> generatedFlights = new ConcurrentHashMap<>();
-        IntStream.rangeClosed(1, DEFAULT_FLIGHTS_NUMBER)
-                .forEach(idx -> generatedFlights.put(idx, new Flight(idx)));
+        rangeClosed(1, DEFAULT_FLIGHTS_NUMBER).forEach(idx -> {
+            Flight flight = new Flight(idx, new DepartureFlightAction((SimulationCoordinator<Passenger>) this));
+            generatedFlights.put(idx, flight);
+            log.debug("Starting '{}' flight departure activity...", flight.getId());
+            SimActivity.callActivity(flight, flight.getDepartureFlightActivity());
+        });
 
         return generatedFlights;
     }
@@ -71,70 +53,58 @@ public class SimulationCoordinator extends SimObject {
         return flights.size();
     }
 
-    public void addPassenger(QueueType queueType, Passenger passenger) {
+    public void addPassenger(ActionKey activity, T passenger) {
         log.trace("Add passenger to queue: {}", passenger);
-        passengerQueues.get(queueType).add(passenger);
-        updateQueueSize();
+        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
+        actionQueue.add(passenger);
     }
 
-    public Passenger nextPassenger(QueueType queueType) {
-        log.trace("Poll passenger from the queue with size: {}", passengerQueues.size());
-        Passenger passenger = passengerQueues.get(queueType).poll();
-        updateQueueSize();
+    public T nextPassenger(ActionKey activity) {
+        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
+        log.trace("Poll passenger from the queue with size: {}", actionQueue.getLength());
 
-        return passenger;
+        return actionQueue.poll();
     }
 
-    public void updateQueueSize() {
-        this.queueLength.setValue(passengerQueues.size());
+    public void callNextAction(ActionKey actionKey) {
+        Action<T> action = actions.get(actionKey);
+        action.callNextAction();
     }
 
-
-    public void blockQueue(QueueType queueType) {
-        log.trace("Blocking '{}' queue...", queueType);
-        this.passengerQueues.get(queueType).blockQueue();
+    public Action<T> getAction(ActionKey actionKey) {
+        return actions.get(actionKey);
     }
 
-    public void freeQueue(QueueType queueType) {
-        log.trace("Releasing '{}' queue...", queueType);
-        this.passengerQueues.get(queueType).freeQueue();
+    public void blockQueue(ActionKey activity) {
+        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
+        log.trace("Blocking '{}' queue...", activity);
+        actionQueue.block();
     }
 
-    public boolean isOccupied(QueueType queueType) {
-        return passengerQueues.get(queueType).isOccupied();
+    public void freeQueue(ActionKey activity) {
+        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
+        log.trace("Releasing '{}' queue...", activity);
+        actionQueue.release();
     }
 
-    public SimActivity getGeneratePassengerActivity() {
-        return generatePassengerActivity;
+    public boolean isOccupied(ActionKey activity) {
+        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
+        return actionQueue.isOccupied();
     }
 
-    public SimActivity getCheckInPassengerActivity() {
-        return checkInPassengerActivity;
+    public MonitoredVar getActionTime(ActionKey actionKey) {
+        Action<T> action = actions.get(actionKey);
+        return action.getActionTime();
     }
 
-    public SimActivity getSecurityCheckPassengerActivity() {
-        return securityCheckPassengerActivity;
-    }
-
-    public MonitoredVar getServiceTime() {
-        return serviceTime;
-    }
-
-    public void setServiceTime(double delay) {
-        log.trace("Set service time: {}", delay);
-        serviceTime.setValue(delay);
-    }
-
-    public MonitoredVar getWaitingTime() {
-        return waitingTime;
-    }
-
-    public void setWaitingTime(double delay) {
+    public void setActionTime(ActionKey actionKey, double delay) {
         log.trace("Set waiting time: {}", delay);
-        waitingTime.setValue(delay);
+        Action<T> action = actions.get(actionKey);
+        action.setActionTime(delay);
     }
 
-    public int getQueueLength(QueueType queueType) {
-        return passengerQueues.get(queueType).getLength();
+    public int getQueueLength(ActionKey activity) {
+        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
+        return actionQueue.getLength();
     }
 }
