@@ -49,23 +49,23 @@ public class GeneratePassengerAction extends AbstractAction<Passenger> {
         SimulationCoordinator<Passenger> simulationCoordinator = (SimulationCoordinator<Passenger>) getParentSimObject();
 
         while (true) {
-            generatePassenger(simulationCoordinator);
-            simulationCoordinator.callNextAction(GENERATE_PASSENGER);
+            Passenger passenger = generatePassenger(simulationCoordinator);
+            log.debug("Passenger: '{}' generated", passenger.getUid());
+            callNextAction();
 
             double delay = simulationGenerator.chisquare(8);
 
             if (await(delay)) {
                 break;
             }
-            simulationCoordinator.setActionTime(CHECK_IN, delay);
+            simulationCoordinator.setActionTime(getNextActionKey(), delay);
         }
     }
 
-    private void generatePassenger(SimulationCoordinator<Passenger> simulationCoordinator) {
+    private Passenger generatePassenger(SimulationCoordinator<Passenger> simulationCoordinator) {
         log.debug("Generating new passenger...");
         int flightNumber = random.nextInt() * (simulationCoordinator.getFlightsSize() + 1);
-        Passenger passenger = new Passenger(simTime(), flightNumber);
-        log.debug("Passenger: '{}' generated", passenger.getUid());
-        simulationCoordinator.addPassenger(CHECK_IN, passenger);
+
+        return new Passenger(simTime(), flightNumber);
     }
 }

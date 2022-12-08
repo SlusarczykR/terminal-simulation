@@ -14,6 +14,10 @@ public interface Action<T> {
 
     ActionKey getKey();
 
+    default boolean randomEventEnabled() {
+        return true;
+    }
+
     default ActionQueue<T> getQueue() {
         return null;
     }

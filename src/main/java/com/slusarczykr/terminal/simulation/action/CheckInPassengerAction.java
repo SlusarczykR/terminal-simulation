@@ -20,14 +20,6 @@ public class CheckInPassengerAction extends AbstractAction<Passenger> {
     }
 
     @Override
-    public void callNextAction(Passenger passenger) {
-        super.callNextAction(passenger);
-        Action<Passenger> nextAction = simulationCoordinator.getAction(getNextActionKey());
-        ActionQueue<Passenger> nextActionQueue = nextAction.getQueue();
-        nextActionQueue.add(passenger);
-    }
-
-    @Override
     public ActionKey getKey() {
         return CHECK_IN;
     }
@@ -45,10 +37,9 @@ public class CheckInPassengerAction extends AbstractAction<Passenger> {
     @Override
     public void action() {
         log.debug("Starting check in passenger activity...");
-        SimulationCoordinator<Passenger> simulationCoordinator = (SimulationCoordinator<Passenger>) getParentSimObject();
+        ActionQueue<Passenger> actionQueue = getQueue();
 
-        while (simulationCoordinator.getQueueLength(CHECK_IN) > 0) {
-            ActionQueue<Passenger> actionQueue = getQueue();
+        while (actionQueue.getLength() > 0) {
             actionQueue.block();
             Passenger passenger = actionQueue.poll();
             log.debug("Checking in passenger: '{}'", passenger.getUid());
