@@ -2,11 +2,9 @@ package com.slusarczykr.terminal.simulation.coordinator;
 
 import com.slusarczykr.terminal.simulation.action.Action;
 import com.slusarczykr.terminal.simulation.action.ActionKey;
-import com.slusarczykr.terminal.simulation.action.DepartureFlightAction;
 import com.slusarczykr.terminal.simulation.action.queue.ActionQueue;
 import com.slusarczykr.terminal.simulation.model.Flight;
 import com.slusarczykr.terminal.simulation.model.Passenger;
-import deskit.SimActivity;
 import deskit.SimObject;
 import deskit.monitors.MonitoredVar;
 import org.apache.logging.log4j.LogManager;
@@ -36,10 +34,9 @@ public class SimulationCoordinator<T> extends SimObject {
     private Map<Integer, Flight> generateFlights() {
         Map<Integer, Flight> generatedFlights = new ConcurrentHashMap<>();
         rangeClosed(1, DEFAULT_FLIGHTS_NUMBER).forEach(idx -> {
-            Flight flight = new Flight(idx, new DepartureFlightAction((SimulationCoordinator<Passenger>) this));
+            Flight flight = new Flight(idx, (SimulationCoordinator<Passenger>) this);
+            log.debug("Generated flight with id: '{}'", flight.getId());
             generatedFlights.put(idx, flight);
-            log.debug("Starting '{}' flight departure activity...", flight.getId());
-            SimActivity.callActivity(flight, flight.getDepartureFlightActivity());
         });
 
         return generatedFlights;

@@ -18,17 +18,6 @@ public class GeneratePassengerAction extends AbstractAction<Passenger> {
     }
 
     @Override
-    public void callNextAction() {
-        ActionQueue<Passenger> actionQueue = getQueue();
-
-        if (actionQueue.getLength() == 1 && !actionQueue.isOccupied()) {
-            super.callNextAction();
-        } else {
-            log.debug("Service passenger activity could not be started - actionQueue length: {}", actionQueue.getLength());
-        }
-    }
-
-    @Override
     public ActionKey getKey() {
         return GENERATE_PASSENGER;
     }
@@ -51,20 +40,20 @@ public class GeneratePassengerAction extends AbstractAction<Passenger> {
         while (true) {
             Passenger passenger = generatePassenger(simulationCoordinator);
             log.debug("Passenger: '{}' generated", passenger.getUid());
-            callNextAction();
+            callNextAction(passenger);
 
             double delay = simulationGenerator.chisquare(8);
 
             if (await(delay)) {
                 break;
             }
-            simulationCoordinator.setActionTime(getNextActionKey(), delay);
+            setActionTime(delay);
         }
     }
 
     private Passenger generatePassenger(SimulationCoordinator<Passenger> simulationCoordinator) {
         log.debug("Generating new passenger...");
-        int flightNumber = random.nextInt() * (simulationCoordinator.getFlightsSize() + 1);
+        int flightNumber = random.nextInt(simulationCoordinator.getFlightsSize()) + 1;
 
         return new Passenger(simTime(), flightNumber);
     }

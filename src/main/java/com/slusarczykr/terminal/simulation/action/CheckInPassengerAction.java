@@ -25,7 +25,7 @@ public class CheckInPassengerAction extends AbstractAction<Passenger> {
     }
 
     @Override
-    public ActionQueue<Passenger> getQueue() {
+    public ActionQueue<Passenger> createActionQueue() {
         return new PassengerQueue(getKey(), new MonitoredVar(simulationCoordinator));
     }
 

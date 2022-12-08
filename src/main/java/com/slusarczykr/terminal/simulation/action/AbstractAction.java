@@ -17,12 +17,14 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
     protected final SimGenerator simulationGenerator;
     protected final MonitoredVar actionTime;
     protected final Random random;
+    protected final ActionQueue<T> actionQueue;
 
     protected AbstractAction(SimulationCoordinator<T> simulationCoordinator) {
         this.simulationCoordinator = simulationCoordinator;
         this.simulationGenerator = new SimGenerator();
         this.actionTime = new MonitoredVar(simulationCoordinator);
         this.random = new Random();
+        this.actionQueue = createActionQueue();
     }
 
     @Override
@@ -64,6 +66,15 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
         int index = random.nextInt(randomEventActionKeys.size());
 
         return randomEventActionKeys.get(index);
+    }
+
+    @Override
+    public ActionQueue<T> getQueue() {
+        return actionQueue;
+    }
+
+    protected ActionQueue<T> createActionQueue() {
+        return null;
     }
 
     @Override

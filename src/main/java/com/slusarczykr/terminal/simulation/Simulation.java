@@ -3,7 +3,6 @@ package com.slusarczykr.terminal.simulation;
 import com.slusarczykr.terminal.simulation.action.Action;
 import com.slusarczykr.terminal.simulation.action.ActionKey;
 import com.slusarczykr.terminal.simulation.action.CheckInPassengerAction;
-import com.slusarczykr.terminal.simulation.action.DepartureFlightAction;
 import com.slusarczykr.terminal.simulation.action.GeneratePassengerAction;
 import com.slusarczykr.terminal.simulation.action.SecurityCheckPassengerAction;
 import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
@@ -48,9 +47,8 @@ public class Simulation {
         log.info("Starting simulation with duration: {}ms...", stopTime);
         SimManager.getSimManager().startSimulation();
         log.info("Simulation duration: {}ms", Duration.between(start, Instant.now()).toMillis());
-
-        generateStatistics(simulationCoordinator);
-        generateServiceTimeHistogram(simulationCoordinator);
+//        generateStatistics(simulationCoordinator);
+//        generateServiceTimeHistogram(simulationCoordinator);
     }
 
     private static void setLoggerLevel(String[] args) {
@@ -64,7 +62,7 @@ public class Simulation {
     private static double getStopTime(String[] args) {
         double stopTime = 2000;
 
-        if (args.length == 1) {
+        if (args.length > 1) {
             stopTime = Double.parseDouble(args[0]);
         }
         return stopTime;
@@ -74,8 +72,7 @@ public class Simulation {
         return Stream.of(
                         new GeneratePassengerAction(simulationCoordinator),
                         new CheckInPassengerAction(simulationCoordinator),
-                        new SecurityCheckPassengerAction(simulationCoordinator),
-                        new DepartureFlightAction(simulationCoordinator)
+                        new SecurityCheckPassengerAction(simulationCoordinator)
                 )
                 .collect(Collectors.toConcurrentMap(Action::getKey, Function.identity()));
     }
@@ -94,9 +91,9 @@ public class Simulation {
     }
 
     private static void generateAverageStatistics(SimulationCoordinator<Passenger> simulationCoordinator) {
-        double averageWaitingTime = calculateAverageTime(simulationCoordinator.getActionTime(CHECK_IN));
-        double averageServiceTime = calculateAverageTime(simulationCoordinator.getActionTime(SECURITY_CHECK));
-        log.info("Average passenger waiting time: {}ms, service time: {}ms", averageWaitingTime, averageServiceTime);
+        double averageCheckInTime = calculateAverageTime(simulationCoordinator.getActionTime(CHECK_IN));
+        double averageSecurityCheckTime = calculateAverageTime(simulationCoordinator.getActionTime(SECURITY_CHECK));
+        log.info("Average passenger waiting time: {}ms, service time: {}ms", averageCheckInTime, averageSecurityCheckTime);
     }
 
     private static double calculateAverageTime(MonitoredVar monitoredVar) {

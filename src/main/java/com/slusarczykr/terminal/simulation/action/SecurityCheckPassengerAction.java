@@ -27,7 +27,7 @@ public class SecurityCheckPassengerAction extends AbstractAction<Passenger> {
     }
 
     @Override
-    public ActionQueue<Passenger> getQueue() {
+    public ActionQueue<Passenger> createActionQueue() {
         return new PassengerQueue(getKey(), new MonitoredVar(simulationCoordinator));
     }
 
@@ -35,9 +35,9 @@ public class SecurityCheckPassengerAction extends AbstractAction<Passenger> {
     public void action() {
         log.debug("Starting security check passenger activity...");
         SimulationCoordinator<Passenger> simulationCoordinator = (SimulationCoordinator<Passenger>) getParentSimObject();
+        ActionQueue<Passenger> actionQueue = getQueue();
 
-        while (simulationCoordinator.getQueueLength(SECURITY_CHECK) > 0) {
-            ActionQueue<Passenger> actionQueue = getQueue();
+        while (actionQueue.getLength() > 0) {
             actionQueue.block();
             Passenger passenger = actionQueue.poll();
             log.debug("Performing passenger security check: '{}'", passenger.getUid());
@@ -48,13 +48,18 @@ public class SecurityCheckPassengerAction extends AbstractAction<Passenger> {
             if (await(delay)) {
                 break;
             }
-            Optional<Flight> maybeFlight = simulationCoordinator.getFlight(passenger.getFlightId());
-            maybeFlight.ifPresent(it -> {
-                log.debug("Adding passenger: '{}' to flight: {}", passenger.getUid(), it.getId());
-                it.addPassenger(passenger);
-            });
-            simulationCoordinator.freeQueue(SECURITY_CHECK);
+            actionQueue.release();
             log.debug("Passenger: '{}' security check procedure finished", passenger.getUid());
+            addPassengerToFlightIfAvailable(simulationCoordinator, passenger);
         }
+    }
+
+    private void addPassengerToFlightIfAvailable(SimulationCoordinator<Passenger> simulationCoordinator, Passenger passenger) {
+        log.debug("Searching for flight with id: {}", passenger.getFlightId());
+        Optional<Flight> maybeFlight = simulationCoordinator.getFlight(passenger.getFlightId());
+        maybeFlight.ifPresent(it -> {
+            log.debug("Adding passenger: '{}' to flight: {}", passenger.getUid(), it.getId());
+            it.addPassenger(passenger);
+        });
     }
 }

@@ -1,24 +1,32 @@
 package com.slusarczykr.terminal.simulation.model;
 
+import com.slusarczykr.terminal.simulation.action.DepartureFlightAction;
+import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
 import deskit.SimActivity;
 import deskit.SimObject;
-import deskit.random.SimGenerator;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static deskit.SimActivity.callActivity;
 
 public class Flight extends SimObject {
 
     private final int id;
     private final Queue<Passenger> passengers;
-    private final double departureTime;
     private final SimActivity departureFlightAction;
 
-    public Flight(int id, SimActivity departureFlightAction) {
+    public Flight(int id, SimulationCoordinator<Passenger> simulationCoordinator) {
         this.id = id;
         this.passengers = new ConcurrentLinkedQueue<>();
-        this.departureTime = new SimGenerator().chisquare(50);
-        this.departureFlightAction = departureFlightAction;
+        this.departureFlightAction = callDepartureFlightAction(simulationCoordinator);
+    }
+
+    private SimActivity callDepartureFlightAction(SimulationCoordinator<Passenger> simulationCoordinator) {
+        SimActivity action = new DepartureFlightAction(simulationCoordinator);
+        callActivity(this, action);
+
+        return action;
     }
 
     public int getId() {
@@ -33,10 +41,6 @@ public class Flight extends SimObject {
         return passengers;
     }
 
-    public double getDepartureTime() {
-        return departureTime;
-    }
-
     public SimActivity getDepartureFlightActivity() {
         return departureFlightAction;
     }
@@ -45,7 +49,6 @@ public class Flight extends SimObject {
     public String toString() {
         return "Flight{" +
                 "id=" + id +
-                ", departureTime=" + departureTime +
                 '}';
     }
 }
