@@ -6,6 +6,8 @@ import com.slusarczykr.terminal.simulation.model.Passenger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.List;
+
 import static com.slusarczykr.terminal.simulation.action.ActionKey.CHECK_IN;
 import static com.slusarczykr.terminal.simulation.action.ActionKey.GENERATE_PASSENGER;
 
@@ -15,6 +17,11 @@ public class GeneratePassengerAction extends AbstractAction<Passenger> {
 
     public GeneratePassengerAction(SimulationCoordinator<Passenger> simulationCoordinator) {
         super(simulationCoordinator);
+    }
+
+    @Override
+    protected Logger getLogger() {
+        return log;
     }
 
     @Override
@@ -53,8 +60,9 @@ public class GeneratePassengerAction extends AbstractAction<Passenger> {
 
     private Passenger generatePassenger(SimulationCoordinator<Passenger> simulationCoordinator) {
         log.debug("Generating new passenger...");
-        int flightNumber = random.nextInt(simulationCoordinator.getFlightsSize()) + 1;
+        List<Integer> flightsIds = simulationCoordinator.getFlightsIds();
+        int flightIdx = random.nextInt(flightsIds.size());
 
-        return new Passenger(simTime(), flightNumber);
+        return new Passenger(simTime(), flightsIds.get(flightIdx));
     }
 }

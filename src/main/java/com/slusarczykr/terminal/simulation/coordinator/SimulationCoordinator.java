@@ -2,7 +2,6 @@ package com.slusarczykr.terminal.simulation.coordinator;
 
 import com.slusarczykr.terminal.simulation.action.Action;
 import com.slusarczykr.terminal.simulation.action.ActionKey;
-import com.slusarczykr.terminal.simulation.action.queue.ActionQueue;
 import com.slusarczykr.terminal.simulation.model.Flight;
 import com.slusarczykr.terminal.simulation.model.Passenger;
 import deskit.SimObject;
@@ -10,9 +9,12 @@ import deskit.monitors.MonitoredVar;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 import static java.util.stream.IntStream.rangeClosed;
@@ -26,82 +28,64 @@ public class SimulationCoordinator<T> extends SimObject {
     private final Map<ActionKey, Action<T>> actions;
     private final Map<Integer, Flight> flights;
 
+    private final AtomicInteger departedFlightsNumber;
+
     public SimulationCoordinator(Function<SimulationCoordinator<T>, Map<ActionKey, Action<T>>> actionsSupplier) {
         this.actions = actionsSupplier.apply(this);
         this.flights = generateFlights();
+        this.departedFlightsNumber = new AtomicInteger(0);
     }
 
     private Map<Integer, Flight> generateFlights() {
         Map<Integer, Flight> generatedFlights = new ConcurrentHashMap<>();
         rangeClosed(1, DEFAULT_FLIGHTS_NUMBER).forEach(idx -> {
-            Flight flight = new Flight(idx, (SimulationCoordinator<Passenger>) this);
-            log.debug("Generated flight with id: '{}'", flight.getId());
-            generatedFlights.put(idx, flight);
+            Flight flight = generateFlight();
+            generatedFlights.put(flight.getId(), flight);
         });
 
         return generatedFlights;
+    }
+
+    private Flight generateFlight() {
+        Flight flight = new Flight((SimulationCoordinator<Passenger>) this);
+        log.debug("Generated flight with id: '{}'", flight.getId());
+
+        return flight;
+    }
+
+    public List<Integer> getFlightsIds() {
+        return new ArrayList<>(flights.keySet());
     }
 
     public Optional<Flight> getFlight(int id) {
         return Optional.ofNullable(flights.get(id));
     }
 
-    public int getFlightsSize() {
-        return flights.size();
+    public void removeFlightIfPresent(int id) {
+        if (flights.containsKey(id)) {
+            removeFlight(id);
+
+            Flight flight = generateFlight();
+            flights.put(flight.getId(), flight);
+        }
     }
 
-    public void addPassenger(ActionKey activity, T passenger) {
-        log.trace("Add passenger to queue: {}", passenger);
-        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
-        actionQueue.add(passenger);
+    private void removeFlight(int id) {
+        flights.remove(id);
+        departedFlightsNumber.incrementAndGet();
+        log.info("Flight: '{}' removed", id);
     }
 
-    public T nextPassenger(ActionKey activity) {
-        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
-        log.trace("Poll passenger from the queue with size: {}", actionQueue.getLength());
-
-        return actionQueue.poll();
-    }
-
-    public void callNextAction(ActionKey actionKey) {
-        Action<T> action = actions.get(actionKey);
-        action.callNextAction();
+    public int getDepartedFlightsNumber() {
+        return departedFlightsNumber.get();
     }
 
     public Action<T> getAction(ActionKey actionKey) {
         return actions.get(actionKey);
     }
 
-    public void blockQueue(ActionKey activity) {
-        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
-        log.trace("Blocking '{}' queue...", activity);
-        actionQueue.block();
-    }
-
-    public void freeQueue(ActionKey activity) {
-        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
-        log.trace("Releasing '{}' queue...", activity);
-        actionQueue.release();
-    }
-
-    public boolean isOccupied(ActionKey activity) {
-        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
-        return actionQueue.isOccupied();
-    }
-
     public MonitoredVar getActionTime(ActionKey actionKey) {
         Action<T> action = actions.get(actionKey);
         return action.getActionTime();
-    }
-
-    public void setActionTime(ActionKey actionKey, double delay) {
-        log.trace("Set waiting time: {}", delay);
-        Action<T> action = actions.get(actionKey);
-        action.setActionTime(delay);
-    }
-
-    public int getQueueLength(ActionKey activity) {
-        ActionQueue<T> actionQueue = actions.get(activity).getQueue();
-        return actionQueue.getLength();
     }
 }

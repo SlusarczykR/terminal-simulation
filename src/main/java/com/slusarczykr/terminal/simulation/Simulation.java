@@ -7,7 +7,6 @@ import com.slusarczykr.terminal.simulation.action.GeneratePassengerAction;
 import com.slusarczykr.terminal.simulation.action.SecurityCheckPassengerAction;
 import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
 import com.slusarczykr.terminal.simulation.model.Passenger;
-import deskit.SimActivity;
 import deskit.SimManager;
 import deskit.monitors.Diagram;
 import deskit.monitors.MonitoredVar;
@@ -40,13 +39,14 @@ public class Simulation {
         double stopTime = getStopTime(args);
 
         SimulationCoordinator<Passenger> simulationCoordinator = new SimulationCoordinator<>(Simulation::initPassengerActions);
-        SimActivity.callActivity(simulationCoordinator, (SimActivity) simulationCoordinator.getAction(GENERATE_PASSENGER));
+        simulationCoordinator.getAction(GENERATE_PASSENGER).call();
         SimManager.getSimManager().setStopTime(stopTime);
 
         Instant start = Instant.now();
         log.info("Starting simulation with duration: {}ms...", stopTime);
         SimManager.getSimManager().startSimulation();
         log.info("Simulation duration: {}ms", Duration.between(start, Instant.now()).toMillis());
+        log.info("Departed flights: {}", simulationCoordinator.getDepartedFlightsNumber());
 //        generateStatistics(simulationCoordinator);
 //        generateServiceTimeHistogram(simulationCoordinator);
     }

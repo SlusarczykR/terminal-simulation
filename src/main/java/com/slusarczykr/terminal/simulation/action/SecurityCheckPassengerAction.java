@@ -22,6 +22,11 @@ public class SecurityCheckPassengerAction extends AbstractAction<Passenger> {
     }
 
     @Override
+    protected Logger getLogger() {
+        return log;
+    }
+
+    @Override
     public ActionKey getKey() {
         return SECURITY_CHECK;
     }

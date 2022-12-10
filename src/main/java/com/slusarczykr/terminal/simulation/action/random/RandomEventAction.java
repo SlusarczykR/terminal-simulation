@@ -51,4 +51,9 @@ public class RandomEventAction<T> extends AbstractAction<T> {
         log.debug("Random event: '{}' finished for: '{}'", actionKey, element);
         callNextAction(element);
     }
+
+    @Override
+    protected Logger getLogger() {
+        return log;
+    }
 }

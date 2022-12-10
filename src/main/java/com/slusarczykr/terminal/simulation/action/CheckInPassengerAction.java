@@ -20,6 +20,11 @@ public class CheckInPassengerAction extends AbstractAction<Passenger> {
     }
 
     @Override
+    protected Logger getLogger() {
+        return log;
+    }
+
+    @Override
     public ActionKey getKey() {
         return CHECK_IN;
     }

@@ -4,8 +4,10 @@ import com.slusarczykr.terminal.simulation.action.queue.ActionQueue;
 import com.slusarczykr.terminal.simulation.action.random.RandomEventAction;
 import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
 import deskit.SimActivity;
+import deskit.SimManager;
 import deskit.monitors.MonitoredVar;
 import deskit.random.SimGenerator;
+import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,9 +30,28 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
     }
 
     @Override
+    public void call() {
+        if (isSimulationRunning()) {
+            try {
+                callActivity(simulationCoordinator, this);
+            } catch (Exception e) {
+                getLogger().error("Exception thrown during action execution", e);
+            }
+        } else {
+            getLogger().debug("Simulation is no longer running. Action: '{}' will not be called", getKey());
+        }
+    }
+
+    protected boolean isSimulationRunning() {
+        SimManager simulationManager = simulationCoordinator.simManager;
+        return simulationManager.getSimTime() <= simulationManager.getStopTime()
+                && simulationManager.getFirstSimObjectFromPendingList() != null;
+    }
+
+    @Override
     public void callNextAction() {
         Action<T> nextAction = simulationCoordinator.getAction(getNextActionKey());
-        callActivity(simulationCoordinator, (SimActivity) nextAction);
+        nextAction.call();
     }
 
     @Override
@@ -40,8 +61,7 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
 
         if (randomNextActionKey.isPresent()) {
             Action<T> nextAction = new RandomEventAction<>(simulationCoordinator, randomNextActionKey.get(), nextActionKey, element);
-            callActivity(simulationCoordinator, (SimActivity) nextAction);
-
+            nextAction.call();
         } else {
             Action<T> nextAction = simulationCoordinator.getAction(nextActionKey);
 
@@ -49,10 +69,12 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
             nextActionQueue.add(element);
 
             if (nextActionQueue.getLength() == 1 && !nextActionQueue.isOccupied()) {
-                callActivity(simulationCoordinator, (SimActivity) nextAction);
+                nextAction.call();
             }
         }
     }
+
+    protected abstract Logger getLogger();
 
     private Optional<ActionKey> getRandomNextActionKey() {
         if (randomEventEnabled() && generateProbability(0.1)) {
@@ -92,5 +114,9 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
     protected boolean await(double delay) {
         waitDuration(delay);
         return isStopped() || isInterrupted();
+    }
+
+    protected double format(double number) {
+        return Double.parseDouble(String.format("%.2f", number));
     }
 }

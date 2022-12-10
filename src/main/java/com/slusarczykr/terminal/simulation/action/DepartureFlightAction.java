@@ -12,13 +12,20 @@ public class DepartureFlightAction extends AbstractAction<Passenger> {
 
     private static final Logger log = LogManager.getLogger(DepartureFlightAction.class);
 
+    private final Flight flight;
     private final double flightPreparationTime;
     private final double departureTime;
 
-    public DepartureFlightAction(SimulationCoordinator<Passenger> simulationCoordinator) {
+    public DepartureFlightAction(SimulationCoordinator<Passenger> simulationCoordinator, Flight flight) {
         super(simulationCoordinator);
+        this.flight = flight;
         this.flightPreparationTime = simulationGenerator.chisquare(20000);
         this.departureTime = simulationGenerator.chisquare(10000);
+    }
+
+    @Override
+    protected Logger getLogger() {
+        return log;
     }
 
     @Override
@@ -28,14 +35,14 @@ public class DepartureFlightAction extends AbstractAction<Passenger> {
 
     @Override
     public void action() {
-        log.info("Flight will be ready for passengers boarding after {}ms", flightPreparationTime);
+        log.info("Flight will be ready for passengers boarding after {}ms", format(flightPreparationTime));
         await(flightPreparationTime);
 
-        Flight flight = (Flight) getParentSimObject();
-        log.info("Flight '{}' will depart for {}ms", flight.getId(), departureTime);
+        log.info("Flight '{}' will depart for {}ms", flight.getId(), format(departureTime));
         await(departureTime);
 
         log.info("Flight: '{}' departed from the airport with {} passengers on the board",
                 flight.getId(), flight.getPassengers().size());
+        simulationCoordinator.removeFlightIfPresent(flight.getId());
     }
 }
