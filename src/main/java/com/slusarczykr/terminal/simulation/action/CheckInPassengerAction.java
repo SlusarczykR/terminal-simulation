@@ -41,7 +41,7 @@ public class CheckInPassengerAction extends AbstractAction<Passenger> {
 
     @Override
     public void action() {
-        log.debug("Starting check in passenger activity...");
+        log.debug("Starting check in passenger activity");
         ActionQueue<Passenger> actionQueue = getQueue();
 
         while (actionQueue.getLength() > 0) {

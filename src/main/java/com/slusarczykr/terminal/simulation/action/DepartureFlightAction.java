@@ -43,6 +43,8 @@ public class DepartureFlightAction extends AbstractAction<Passenger> {
 
         log.info("Flight: '{}' departed from the airport with {} passengers on the board",
                 flight.getId(), flight.getPassengers().size());
-        simulationCoordinator.removeFlightIfPresent(flight.getId());
+        if (isSimulationRunning()) {
+            simulationCoordinator.removeFlightIfPresent(flight.getId());
+        }
     }
 }

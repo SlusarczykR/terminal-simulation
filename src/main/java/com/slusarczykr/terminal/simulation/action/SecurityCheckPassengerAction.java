@@ -38,7 +38,7 @@ public class SecurityCheckPassengerAction extends AbstractAction<Passenger> {
 
     @Override
     public void action() {
-        log.debug("Starting security check passenger activity...");
+        log.debug("Starting security check passenger activity");
         SimulationCoordinator<Passenger> simulationCoordinator = (SimulationCoordinator<Passenger>) getParentSimObject();
         ActionQueue<Passenger> actionQueue = getQueue();
 

@@ -4,6 +4,7 @@ import com.slusarczykr.terminal.simulation.action.Action;
 import com.slusarczykr.terminal.simulation.action.ActionKey;
 import com.slusarczykr.terminal.simulation.model.Flight;
 import com.slusarczykr.terminal.simulation.model.Passenger;
+import deskit.SimActivity;
 import deskit.SimObject;
 import deskit.monitors.MonitoredVar;
 import org.apache.logging.log4j.LogManager;
@@ -13,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -25,12 +27,14 @@ public class SimulationCoordinator<T> extends SimObject {
 
     public static final int DEFAULT_FLIGHTS_NUMBER = 10;
 
+    private final Set<SimActivity> activities;
     private final Map<ActionKey, Action<T>> actions;
     private final Map<Integer, Flight> flights;
 
     private final AtomicInteger departedFlightsNumber;
 
     public SimulationCoordinator(Function<SimulationCoordinator<T>, Map<ActionKey, Action<T>>> actionsSupplier) {
+        this.activities = ConcurrentHashMap.newKeySet();
         this.actions = actionsSupplier.apply(this);
         this.flights = generateFlights();
         this.departedFlightsNumber = new AtomicInteger(0);
@@ -51,6 +55,10 @@ public class SimulationCoordinator<T> extends SimObject {
         log.debug("Generated flight with id: '{}'", flight.getId());
 
         return flight;
+    }
+
+    public void call(ActionKey actionKey) {
+        getAction(actionKey).call();
     }
 
     public List<Integer> getFlightsIds() {
@@ -78,6 +86,23 @@ public class SimulationCoordinator<T> extends SimObject {
 
     public int getDepartedFlightsNumber() {
         return departedFlightsNumber.get();
+    }
+
+    public void addActivity(SimActivity activity) {
+        this.activities.add(activity);
+    }
+
+    public void stop() {
+        activities
+                .stream()
+                .filter(Thread::isAlive)
+                .forEach(it -> {
+                    try {
+                        it.terminate();
+                    } catch (Exception e) {
+                        log.error("Exception thrown during activity termination", e);
+                    }
+                });
     }
 
     public Action<T> getAction(ActionKey actionKey) {

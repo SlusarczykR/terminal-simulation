@@ -34,6 +34,7 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
         if (isSimulationRunning()) {
             try {
                 callActivity(simulationCoordinator, this);
+                simulationCoordinator.addActivity(this);
             } catch (Exception e) {
                 getLogger().error("Exception thrown during action execution", e);
             }

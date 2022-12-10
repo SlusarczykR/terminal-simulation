@@ -41,7 +41,7 @@ public class GeneratePassengerAction extends AbstractAction<Passenger> {
 
     @Override
     public void action() {
-        log.debug("Starting generate passenger activity...");
+        log.debug("Starting generate passenger activity");
         SimulationCoordinator<Passenger> simulationCoordinator = (SimulationCoordinator<Passenger>) getParentSimObject();
 
         while (true) {
@@ -59,7 +59,7 @@ public class GeneratePassengerAction extends AbstractAction<Passenger> {
     }
 
     private Passenger generatePassenger(SimulationCoordinator<Passenger> simulationCoordinator) {
-        log.debug("Generating new passenger...");
+        log.debug("Generating new passenger");
         List<Integer> flightsIds = simulationCoordinator.getFlightsIds();
         int flightIdx = random.nextInt(flightsIds.size());
 
