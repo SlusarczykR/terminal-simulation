@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 import static java.util.stream.IntStream.rangeClosed;
@@ -29,15 +28,24 @@ public class SimulationCoordinator<T> extends SimObject {
 
     private final Set<SimActivity> activities;
     private final Map<ActionKey, Action<T>> actions;
+    private final MonitoredVar randomEventActionTime;
     private final Map<Integer, Flight> flights;
-
-    private final AtomicInteger departedFlightsNumber;
+    private final Set<Flight> departedFlights;
 
     public SimulationCoordinator(Function<SimulationCoordinator<T>, Map<ActionKey, Action<T>>> actionsSupplier) {
         this.activities = ConcurrentHashMap.newKeySet();
         this.actions = actionsSupplier.apply(this);
+        this.randomEventActionTime = new MonitoredVar(this);
         this.flights = generateFlights();
-        this.departedFlightsNumber = new AtomicInteger(0);
+        this.departedFlights = ConcurrentHashMap.newKeySet();
+    }
+
+    public MonitoredVar getRandomEventActionTime() {
+        return randomEventActionTime;
+    }
+
+    public void setRandomEventActionTime(double delay) {
+        this.randomEventActionTime.setValue(delay);
     }
 
     private Map<Integer, Flight> generateFlights() {
@@ -61,31 +69,71 @@ public class SimulationCoordinator<T> extends SimObject {
         getAction(actionKey).call();
     }
 
+    public boolean anyFlightAvailable() {
+        return !flights.isEmpty();
+    }
+
     public List<Integer> getFlightsIds() {
         return new ArrayList<>(flights.keySet());
     }
 
-    public Optional<Flight> getFlight(int id) {
-        return Optional.ofNullable(flights.get(id));
+    public void addMissedPassenger(Passenger passenger) {
+        Optional<Flight> maybeFlight = getFlight(passenger.getFlightId(), true);
+        maybeFlight.ifPresent(it -> it.addPassenger(passenger, true));
+    }
+
+    public Optional<Flight> getFlight(int id, boolean departed) {
+        if (!departed) {
+            return Optional.ofNullable(flights.get(id));
+        }
+        return departedFlights.stream()
+                .filter(it -> it.getId() == id)
+                .findFirst();
     }
 
     public void removeFlightIfPresent(int id) {
-        if (flights.containsKey(id)) {
-            removeFlight(id);
+        Optional.ofNullable(flights.get(id)).ifPresent(it -> {
+            flights.remove(it.getId());
+            departedFlights.add(it);
+            generateFlightIfSimulationIsRunning();
+        });
+    }
 
+    private void generateFlightIfSimulationIsRunning() {
+        if (isSimulationRunning()) {
             Flight flight = generateFlight();
-            flights.put(flight.getId(), flight);
+
+            if (flight.isExecuted()) {
+                flights.put(flight.getId(), flight);
+            }
         }
     }
 
-    private void removeFlight(int id) {
-        flights.remove(id);
-        departedFlightsNumber.incrementAndGet();
-        log.info("Flight: '{}' removed", id);
+    public boolean isSimulationRunning() {
+        return simManager.getSimTime() <= simManager.getStopTime()
+                && simManager.getFirstSimObjectFromPendingList() != null;
+    }
+
+    public List<Flight> getDepartedFlights() {
+        return new ArrayList<>(departedFlights);
     }
 
     public int getDepartedFlightsNumber() {
-        return departedFlightsNumber.get();
+        return departedFlights.size();
+    }
+
+    public int getDepartedPassengersNumber() {
+        return (int) departedFlights.stream()
+                .map(Flight::getPassengers)
+                .mapToLong(Set::size)
+                .sum();
+    }
+
+    public int getMissedFlightPassengersNumber() {
+        return (int) departedFlights.stream()
+                .map(Flight::getMissedPassengers)
+                .mapToLong(Set::size)
+                .sum();
     }
 
     public void addActivity(SimActivity activity) {
@@ -98,6 +146,7 @@ public class SimulationCoordinator<T> extends SimObject {
                 .filter(Thread::isAlive)
                 .forEach(it -> {
                     try {
+                        it.resumeActivity();
                         it.terminate();
                     } catch (Exception e) {
                         log.error("Exception thrown during activity termination", e);

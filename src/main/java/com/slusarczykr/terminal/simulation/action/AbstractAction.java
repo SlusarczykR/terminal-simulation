@@ -4,7 +4,6 @@ import com.slusarczykr.terminal.simulation.action.queue.ActionQueue;
 import com.slusarczykr.terminal.simulation.action.random.RandomEventAction;
 import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
 import deskit.SimActivity;
-import deskit.SimManager;
 import deskit.monitors.MonitoredVar;
 import deskit.random.SimGenerator;
 import org.apache.logging.log4j.Logger;
@@ -44,9 +43,7 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
     }
 
     protected boolean isSimulationRunning() {
-        SimManager simulationManager = simulationCoordinator.simManager;
-        return simulationManager.getSimTime() <= simulationManager.getStopTime()
-                && simulationManager.getFirstSimObjectFromPendingList() != null;
+        return simulationCoordinator.isSimulationRunning();
     }
 
     @Override

@@ -45,7 +45,7 @@ public class RandomEventAction<T> extends AbstractAction<T> {
         log.debug("Starting random event: '{}' for: '{}'", actionKey, element);
 
         double delay = simulationGenerator.chisquare(1);
-        setActionTime(delay);
+        simulationCoordinator.setRandomEventActionTime(delay);
 
         await(delay);
         log.debug("Random event: '{}' finished for: '{}'", actionKey, element);

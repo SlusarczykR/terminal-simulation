@@ -61,10 +61,15 @@ public class SecurityCheckPassengerAction extends AbstractAction<Passenger> {
 
     private void addPassengerToFlightIfAvailable(SimulationCoordinator<Passenger> simulationCoordinator, Passenger passenger) {
         log.debug("Searching for flight with id: {}", passenger.getFlightId());
-        Optional<Flight> maybeFlight = simulationCoordinator.getFlight(passenger.getFlightId());
-        maybeFlight.ifPresent(it -> {
-            log.debug("Adding passenger: '{}' to flight: {}", passenger.getUid(), it.getId());
-            it.addPassenger(passenger);
-        });
+        Optional<Flight> maybeFlight = simulationCoordinator.getFlight(passenger.getFlightId(), false);
+
+        if (maybeFlight.isPresent()) {
+            Flight flight = maybeFlight.get();
+            log.debug("Adding passenger: '{}' to flight: '{}'", passenger.getUid(), flight.getId());
+            flight.addPassenger(passenger, false);
+        } else {
+            log.debug("Passenger: '{}' missed the flight: '{}'", passenger.getUid(), passenger.getFlightId());
+            simulationCoordinator.addMissedPassenger(passenger);
+        }
     }
 }

@@ -1,48 +1,71 @@
 package com.slusarczykr.terminal.simulation.model;
 
-import com.slusarczykr.terminal.simulation.action.Action;
 import com.slusarczykr.terminal.simulation.action.DepartureFlightAction;
 import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
+import deskit.SimManager;
 import deskit.SimObject;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Flight extends SimObject {
 
     private static int flightIdOffset = 0;
 
+    private final SimulationCoordinator simulationCoordinator;
     private final int id;
-    private final Queue<Passenger> passengers;
-    private final Action<Passenger> departureFlightAction;
+    private final Set<Passenger> passengers;
+    private final Set<Passenger> missedPassengers;
+    private final boolean executed;
 
     public Flight(SimulationCoordinator<Passenger> simulationCoordinator) {
+        this.simulationCoordinator = simulationCoordinator;
         this.id = flightIdOffset++;
-        this.passengers = new ConcurrentLinkedQueue<>();
-        this.departureFlightAction = callDepartureFlightAction(simulationCoordinator);
+        this.passengers = ConcurrentHashMap.newKeySet();
+        this.missedPassengers = ConcurrentHashMap.newKeySet();
+        this.executed = callDepartureFlightAction();
     }
 
-    private Action<Passenger> callDepartureFlightAction(SimulationCoordinator<Passenger> simulationCoordinator) {
-        Action<Passenger> action = new DepartureFlightAction(simulationCoordinator, this);
-        action.call();
+    private boolean callDepartureFlightAction() {
+        DepartureFlightAction action = new DepartureFlightAction(simulationCoordinator, this);
+        boolean shouldStartAction = shouldStartDepartureFlightAction(action);
 
-        return action;
+        if (shouldStartAction) {
+            action.call();
+        }
+        return shouldStartAction;
+    }
+
+    private boolean shouldStartDepartureFlightAction(DepartureFlightAction action) {
+        SimManager simulationManager = simulationCoordinator.simManager;
+        double timeLeft = simulationManager.getStopTime() - simulationManager.getSimTime();
+        double flightDepartureTime = action.getFlightPreparationTime() + action.getDepartureTime();
+
+        return timeLeft > flightDepartureTime;
     }
 
     public int getId() {
         return id;
     }
 
-    public Action<Passenger> getDepartureFlightAction() {
-        return departureFlightAction;
+    public boolean isExecuted() {
+        return executed;
     }
 
-    public void addPassenger(Passenger passenger) {
-        this.passengers.add(passenger);
+    public void addPassenger(Passenger passenger, boolean missed) {
+        if (missed) {
+            this.missedPassengers.add(passenger);
+        } else {
+            this.passengers.add(passenger);
+        }
     }
 
-    public Queue<Passenger> getPassengers() {
+    public Set<Passenger> getPassengers() {
         return passengers;
+    }
+
+    public Set<Passenger> getMissedPassengers() {
+        return missedPassengers;
     }
 
     @Override

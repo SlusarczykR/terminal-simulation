@@ -35,16 +35,22 @@ public class DepartureFlightAction extends AbstractAction<Passenger> {
 
     @Override
     public void action() {
-        log.info("Flight will be ready for passengers boarding after {}ms", format(flightPreparationTime));
+        log.info("Flight: '{}' will be ready for passengers boarding after {}ms", flight.getId(), format(flightPreparationTime));
         await(flightPreparationTime);
 
-        log.info("Flight '{}' will depart for {}ms", flight.getId(), format(departureTime));
+        log.info("Flight: '{}' will depart for {}ms", flight.getId(), format(departureTime));
         await(departureTime);
 
         log.info("Flight: '{}' departed from the airport with {} passengers on the board",
                 flight.getId(), flight.getPassengers().size());
-        if (isSimulationRunning()) {
-            simulationCoordinator.removeFlightIfPresent(flight.getId());
-        }
+        simulationCoordinator.removeFlightIfPresent(flight.getId());
+    }
+
+    public double getFlightPreparationTime() {
+        return flightPreparationTime;
+    }
+
+    public double getDepartureTime() {
+        return departureTime;
     }
 }

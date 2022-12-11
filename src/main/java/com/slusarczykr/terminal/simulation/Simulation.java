@@ -7,6 +7,7 @@ import com.slusarczykr.terminal.simulation.action.GeneratePassengerAction;
 import com.slusarczykr.terminal.simulation.action.SecurityCheckPassengerAction;
 import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
 import com.slusarczykr.terminal.simulation.model.Passenger;
+import deskit.SimManager;
 import deskit.monitors.Diagram;
 import deskit.monitors.MonitoredVar;
 import deskit.monitors.Statistics;
@@ -15,6 +16,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
@@ -38,10 +42,12 @@ public class Simulation {
     private static final Logger log = LogManager.getLogger(Simulation.class);
 
     private static final List<String> AVAILABLE_LOGGER_LEVELS = Arrays.asList("INFO", "DEBUG", "TRACE");
+    private static final String DEFAULT_LOGGER_LEVEL = "INFO";
 
     private static final String UNSUPPORTED_OPERATION_EXCEPTION = "Unsupported operation type";
 
     public static void main(String[] args) {
+        disableSystemLogging();
         SimulationConfiguration simulationConfig = new SimulationConfiguration();
 
         while (true) {
@@ -62,6 +68,16 @@ public class Simulation {
             }
             log.info("\n");
         }
+    }
+
+    private static void disableSystemLogging() {
+        PrintStream dummyWriter = new PrintStream(new OutputStream() {
+            @Override
+            public void write(int arg0) throws IOException {
+            }
+        });
+        System.setOut(dummyWriter);
+        System.setErr(dummyWriter);
     }
 
     private static void configureSimulation(SimulationConfiguration simulationConfig) {
@@ -110,16 +126,28 @@ public class Simulation {
     private static SimulationCoordinator<Passenger> runSimulation(SimulationConfiguration simulationConfig) {
         double simulationDuration = simulationConfig.getSimulationDuration();
 
-        SimulationCoordinator<Passenger> simulationCoordinator = new SimulationCoordinator<>(Simulation::initPassengerActions);
-        simulationCoordinator.simManager.setStopTime(simulationDuration);
-        simulationCoordinator.call(GENERATE_PASSENGER);
-
         log.info("Starting simulation with duration: {}ms", simulationDuration);
-        simulationCoordinator.simManager.startSimulation();
+        SimManager simManager = initSimManager(simulationDuration);
+        SimulationCoordinator<Passenger> simulationCoordinator = new SimulationCoordinator<>(Simulation::initPassengerActions);
+        simulationCoordinator.call(GENERATE_PASSENGER);
+        simManager.startSimulation();
         simulationCoordinator.stop();
         log.info("Simulation finished");
+        log.info("Generated passengers: {}", simulationCoordinator.getAction(GENERATE_PASSENGER).getActionTime().getChanges().size());
+        log.info("Generated random events: {}", simulationCoordinator.getRandomEventActionTime().getChanges().size());
+        log.info("Departed flights: {}", simulationCoordinator.getDepartedFlightsNumber());
+        log.info("Departed passengers: {}", simulationCoordinator.getDepartedPassengersNumber());
+        log.info("Missed flight passengers: {}", simulationCoordinator.getMissedFlightPassengersNumber());
 
         return simulationCoordinator;
+    }
+
+    private static SimManager initSimManager(double simulationDuration) {
+        SimManager simManager = SimManager.getSimManager();
+        simManager.setSimTime(0.0);
+        simManager.setStopTime(simulationDuration);
+
+        return simManager;
     }
 
     private static String readUserInput(String label) {
@@ -130,7 +158,7 @@ public class Simulation {
 
     private static void setLoggerLevel(String level) {
         if (!AVAILABLE_LOGGER_LEVELS.contains(level)) {
-            level = "INFO";
+            level = DEFAULT_LOGGER_LEVEL;
         }
         Level loggerLevel = Level.getLevel(level.toUpperCase());
         Logger logger = LogManager.getRootLogger();
@@ -179,7 +207,7 @@ public class Simulation {
 
     private static class SimulationConfiguration {
 
-        private static final double DEFAULT_SIMULATION_DURATION = 30000.0;
+        private static final double DEFAULT_SIMULATION_DURATION = 50000.0;
         private static final double MIN_SIMULATION_DURATION = 5000.0;
         private static final double DEFAULT_MAX_FLIGHTS_NUMBER = 10.0;
         private static final double MIN_FLIGHTS_NUMBER = 3;

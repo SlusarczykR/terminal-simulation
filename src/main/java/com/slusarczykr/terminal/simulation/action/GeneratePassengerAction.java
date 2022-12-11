@@ -44,7 +44,7 @@ public class GeneratePassengerAction extends AbstractAction<Passenger> {
         log.debug("Starting generate passenger activity");
         SimulationCoordinator<Passenger> simulationCoordinator = (SimulationCoordinator<Passenger>) getParentSimObject();
 
-        while (true) {
+        while (simulationCoordinator.anyFlightAvailable()) {
             Passenger passenger = generatePassenger(simulationCoordinator);
             log.debug("Passenger: '{}' generated", passenger.getUid());
             callNextAction(passenger);
