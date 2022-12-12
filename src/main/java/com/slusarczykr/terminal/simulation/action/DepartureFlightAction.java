@@ -1,6 +1,6 @@
 package com.slusarczykr.terminal.simulation.action;
 
-import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
+import com.slusarczykr.terminal.simulation.coordinator.TerminalSimulationCoordinator;
 import com.slusarczykr.terminal.simulation.model.Flight;
 import com.slusarczykr.terminal.simulation.model.Passenger;
 import org.apache.logging.log4j.LogManager;
@@ -12,12 +12,14 @@ public class DepartureFlightAction extends AbstractAction<Passenger> {
 
     private static final Logger log = LogManager.getLogger(DepartureFlightAction.class);
 
+    private static int indexOffset = 0;
+
     private final Flight flight;
     private final double flightPreparationTime;
     private final double departureTime;
 
-    public DepartureFlightAction(SimulationCoordinator<Passenger> simulationCoordinator, Flight flight) {
-        super(simulationCoordinator);
+    public DepartureFlightAction(TerminalSimulationCoordinator simulationCoordinator, Flight flight) {
+        super(simulationCoordinator, indexOffset++);
         this.flight = flight;
         this.flightPreparationTime = simulationGenerator.chisquare(20000);
         this.departureTime = simulationGenerator.chisquare(10000);
@@ -35,15 +37,15 @@ public class DepartureFlightAction extends AbstractAction<Passenger> {
 
     @Override
     public void action() {
-        log.info("Flight: '{}' will be ready for passengers boarding after {}ms", flight.getId(), format(flightPreparationTime));
+        log.info("['{}'] Flight: '{}' will be ready for passengers boarding after {}ms", getIndex(), flight.getId(), format(flightPreparationTime));
         await(flightPreparationTime);
 
-        log.info("Flight: '{}' will depart for {}ms", flight.getId(), format(departureTime));
+        log.info("['{}'] Flight: '{}' will depart for {}ms", getIndex(), flight.getId(), format(departureTime));
         await(departureTime);
 
-        log.info("Flight: '{}' departed from the airport with {} passengers on the board",
-                flight.getId(), flight.getPassengers().size());
-        simulationCoordinator.removeFlightIfPresent(flight.getId());
+        log.info("['{}'] Flight: '{}' departed from the airport with {} passengers on the board",
+                getIndex(), flight.getId(), flight.getPassengers().size());
+        ((TerminalSimulationCoordinator) simulationCoordinator).removeFlightIfPresent(flight.getId());
     }
 
     public double getFlightPreparationTime() {

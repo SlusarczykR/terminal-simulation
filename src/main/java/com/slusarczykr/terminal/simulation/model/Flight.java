@@ -1,7 +1,7 @@
 package com.slusarczykr.terminal.simulation.model;
 
 import com.slusarczykr.terminal.simulation.action.DepartureFlightAction;
-import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
+import com.slusarczykr.terminal.simulation.coordinator.TerminalSimulationCoordinator;
 import deskit.SimManager;
 import deskit.SimObject;
 
@@ -12,13 +12,13 @@ public class Flight extends SimObject {
 
     private static int flightIdOffset = 0;
 
-    private final SimulationCoordinator simulationCoordinator;
+    private final TerminalSimulationCoordinator simulationCoordinator;
     private final int id;
     private final Set<Passenger> passengers;
     private final Set<Passenger> missedPassengers;
     private final boolean executed;
 
-    public Flight(SimulationCoordinator<Passenger> simulationCoordinator) {
+    public Flight(TerminalSimulationCoordinator simulationCoordinator) {
         this.simulationCoordinator = simulationCoordinator;
         this.id = flightIdOffset++;
         this.passengers = ConcurrentHashMap.newKeySet();

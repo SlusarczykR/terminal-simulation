@@ -1,12 +1,8 @@
 package com.slusarczykr.terminal.simulation;
 
-import com.slusarczykr.terminal.simulation.action.Action;
 import com.slusarczykr.terminal.simulation.action.ActionKey;
-import com.slusarczykr.terminal.simulation.action.CheckInPassengerAction;
-import com.slusarczykr.terminal.simulation.action.GeneratePassengerAction;
-import com.slusarczykr.terminal.simulation.action.SecurityCheckPassengerAction;
-import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
-import com.slusarczykr.terminal.simulation.model.Passenger;
+import com.slusarczykr.terminal.simulation.config.SimulationConfiguration;
+import com.slusarczykr.terminal.simulation.coordinator.TerminalSimulationCoordinator;
 import deskit.SimManager;
 import deskit.monitors.Diagram;
 import deskit.monitors.MonitoredVar;
@@ -24,12 +20,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Scanner;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.slusarczykr.terminal.simulation.action.ActionKey.CHECK_IN;
 import static com.slusarczykr.terminal.simulation.action.ActionKey.GENERATE_PASSENGER;
@@ -37,9 +29,9 @@ import static com.slusarczykr.terminal.simulation.action.ActionKey.SECURITY_CHEC
 import static java.awt.Color.GREEN;
 import static java.math.RoundingMode.HALF_UP;
 
-public class Simulation {
+public class TerminalSimulation {
 
-    private static final Logger log = LogManager.getLogger(Simulation.class);
+    private static final Logger log = LogManager.getLogger(TerminalSimulation.class);
 
     private static final List<String> AVAILABLE_LOGGER_LEVELS = Arrays.asList("INFO", "DEBUG", "TRACE");
     private static final String DEFAULT_LOGGER_LEVEL = "INFO";
@@ -48,6 +40,7 @@ public class Simulation {
 
     public static void main(String[] args) {
         disableSystemLogging();
+        setLoggerLevel("DEBUG");
         SimulationConfiguration simulationConfig = new SimulationConfiguration();
 
         while (true) {
@@ -93,7 +86,7 @@ public class Simulation {
     }
 
     private static void displaySimulationMenu(SimulationConfiguration simulationConfig) {
-        SimulationCoordinator<Passenger> simulationCoordinator = runSimulation(simulationConfig);
+        TerminalSimulationCoordinator simulationCoordinator = runSimulation(simulationConfig);
 
         while (true) {
             log.info("\nq - Exit\n1 - Rerun simulation\n2 - Display simulation statistics\n3 - Configure simulation\n4 - Change log level\n\n");
@@ -117,18 +110,18 @@ public class Simulation {
         }
     }
 
-    private static void displaySimulationStatistics(SimulationCoordinator<Passenger> simulationCoordinator) {
+    private static void displaySimulationStatistics(TerminalSimulationCoordinator simulationCoordinator) {
         Instant start = Instant.now();
         log.info("Simulation duration: {}ms", Duration.between(start, Instant.now()).toMillis());
         log.info("Departed flights: {}", simulationCoordinator.getDepartedFlightsNumber());
     }
 
-    private static SimulationCoordinator<Passenger> runSimulation(SimulationConfiguration simulationConfig) {
+    private static TerminalSimulationCoordinator runSimulation(SimulationConfiguration simulationConfig) {
         double simulationDuration = simulationConfig.getSimulationDuration();
 
         log.info("Starting simulation with duration: {}ms", simulationDuration);
         SimManager simManager = initSimManager(simulationDuration);
-        SimulationCoordinator<Passenger> simulationCoordinator = new SimulationCoordinator<>(Simulation::initPassengerActions);
+        TerminalSimulationCoordinator simulationCoordinator = new TerminalSimulationCoordinator(simulationConfig);
         simulationCoordinator.call(GENERATE_PASSENGER);
         simManager.startSimulation();
         simulationCoordinator.stop();
@@ -165,16 +158,7 @@ public class Simulation {
         Configurator.setAllLevels(logger.getName(), loggerLevel);
     }
 
-    private static Map<ActionKey, Action<Passenger>> initPassengerActions(SimulationCoordinator<Passenger> simulationCoordinator) {
-        return Stream.of(
-                        new GeneratePassengerAction(simulationCoordinator),
-                        new CheckInPassengerAction(simulationCoordinator),
-                        new SecurityCheckPassengerAction(simulationCoordinator)
-                )
-                .collect(Collectors.toConcurrentMap(Action::getKey, Function.identity()));
-    }
-
-    private static void generateStatistics(SimulationCoordinator<Passenger> simulationCoordinator) {
+    private static void generateStatistics(TerminalSimulationCoordinator simulationCoordinator) {
         logProcessedPassengers(simulationCoordinator, GENERATE_PASSENGER);
         logProcessedPassengers(simulationCoordinator, CHECK_IN);
         logProcessedPassengers(simulationCoordinator, SECURITY_CHECK);
@@ -182,12 +166,12 @@ public class Simulation {
         generateAverageStatistics(simulationCoordinator);
     }
 
-    private static void logProcessedPassengers(SimulationCoordinator<Passenger> simulationCoordinator, ActionKey actionKey) {
+    private static void logProcessedPassengers(TerminalSimulationCoordinator simulationCoordinator, ActionKey actionKey) {
         MonitoredVar actionTime = simulationCoordinator.getActionTime(actionKey);
         log.info("Total number of passengers processed in: '{}' action - {}", actionKey, actionTime.getChanges().size());
     }
 
-    private static void generateAverageStatistics(SimulationCoordinator<Passenger> simulationCoordinator) {
+    private static void generateAverageStatistics(TerminalSimulationCoordinator simulationCoordinator) {
         double averageCheckInTime = calculateAverageTime(simulationCoordinator.getActionTime(CHECK_IN));
         double averageSecurityCheckTime = calculateAverageTime(simulationCoordinator.getActionTime(SECURITY_CHECK));
         log.info("Average passenger waiting time: {}ms, service time: {}ms", averageCheckInTime, averageSecurityCheckTime);
@@ -198,63 +182,10 @@ public class Simulation {
         return BigDecimal.valueOf(arithmeticMean).setScale(2, HALF_UP).doubleValue();
     }
 
-    private static void generateServiceTimeHistogram(SimulationCoordinator<Passenger> simulationCoordinator) {
+    private static void generateServiceTimeHistogram(TerminalSimulationCoordinator simulationCoordinator) {
         log.info("Generating service time histogram");
         Diagram serviceTimeHistogram = new Diagram("Histogram", "Service Time");
         serviceTimeHistogram.add(simulationCoordinator.getActionTime(CHECK_IN), GREEN);
         serviceTimeHistogram.show();
-    }
-
-    private static class SimulationConfiguration {
-
-        private static final double DEFAULT_SIMULATION_DURATION = 50000.0;
-        private static final double MIN_SIMULATION_DURATION = 5000.0;
-        private static final double DEFAULT_MAX_FLIGHTS_NUMBER = 10.0;
-        private static final double MIN_FLIGHTS_NUMBER = 3;
-        private static final double DEFAULT_RANDOM_EVENT_PROBABILITY = 0.1;
-        private static final double MIN_RANDOM_EVENT_PROBABILITY = 0.01;
-
-        private double simulationDuration;
-        private double maxFlightsNumber;
-        private double randomEventProbability;
-
-        public SimulationConfiguration() {
-            this.simulationDuration = DEFAULT_SIMULATION_DURATION;
-            this.maxFlightsNumber = DEFAULT_MAX_FLIGHTS_NUMBER;
-            this.randomEventProbability = DEFAULT_RANDOM_EVENT_PROBABILITY;
-        }
-
-        public double getSimulationDuration() {
-            return simulationDuration;
-        }
-
-        public void setSimulationDuration(double simulationDuration) {
-            if (simulationDuration < MIN_SIMULATION_DURATION) {
-                simulationDuration = MIN_SIMULATION_DURATION;
-            }
-            this.simulationDuration = simulationDuration;
-        }
-
-        public double getMaxFlightsNumber() {
-            return maxFlightsNumber;
-        }
-
-        public void setMaxFlightsNumber(double maxFlightsNumber) {
-            if (maxFlightsNumber < MIN_FLIGHTS_NUMBER) {
-                maxFlightsNumber = MIN_FLIGHTS_NUMBER;
-            }
-            this.maxFlightsNumber = maxFlightsNumber;
-        }
-
-        public double getRandomEventProbability() {
-            return randomEventProbability;
-        }
-
-        public void setRandomEventProbability(double randomEventProbability) {
-            if (randomEventProbability < MIN_RANDOM_EVENT_PROBABILITY) {
-                randomEventProbability = MIN_RANDOM_EVENT_PROBABILITY;
-            }
-            this.randomEventProbability = randomEventProbability;
-        }
     }
 }

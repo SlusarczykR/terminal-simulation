@@ -15,8 +15,8 @@ public class CheckInPassengerAction extends AbstractAction<Passenger> {
 
     private static final Logger log = LogManager.getLogger(CheckInPassengerAction.class);
 
-    public CheckInPassengerAction(SimulationCoordinator<Passenger> simulationCoordinator) {
-        super(simulationCoordinator);
+    public CheckInPassengerAction(SimulationCoordinator<Passenger> simulationCoordinator, int index) {
+        super(simulationCoordinator, index);
     }
 
     @Override
@@ -41,13 +41,13 @@ public class CheckInPassengerAction extends AbstractAction<Passenger> {
 
     @Override
     public void action() {
-        log.debug("Starting check in passenger activity");
+        log.debug("['{}'] Starting check in passenger activity", getIndex());
         ActionQueue<Passenger> actionQueue = getQueue();
 
         while (actionQueue.getLength() > 0) {
             actionQueue.block();
             Passenger passenger = actionQueue.poll();
-            log.debug("Checking in passenger: '{}'", passenger.getUid());
+            log.debug("['{}'] Checking in passenger: '{}'", getIndex(), passenger.getUid());
 
             double delay = simulationGenerator.chisquare(7);
             setActionTime(delay);
@@ -56,7 +56,7 @@ public class CheckInPassengerAction extends AbstractAction<Passenger> {
                 break;
             }
             actionQueue.release();
-            log.debug("Passenger: '{}' check in procedure finished", passenger.getUid());
+            log.debug("['{}'] Passenger: '{}' check in procedure finished", getIndex(), passenger.getUid());
             callNextAction(passenger);
         }
     }

@@ -10,6 +10,8 @@ public class RandomEventAction<T> extends AbstractAction<T> {
 
     private static final Logger log = LogManager.getLogger(RandomEventAction.class);
 
+    private static int indexOffset = 0;
+
     private final ActionKey actionKey;
     private final ActionKey nextActionKey;
     private final T element;
@@ -19,7 +21,7 @@ public class RandomEventAction<T> extends AbstractAction<T> {
                              ActionKey nextActionKey,
                              T element
     ) {
-        super(simulationCoordinator);
+        super(simulationCoordinator, indexOffset++);
         this.actionKey = randomActionKey;
         this.nextActionKey = nextActionKey;
         this.element = element;

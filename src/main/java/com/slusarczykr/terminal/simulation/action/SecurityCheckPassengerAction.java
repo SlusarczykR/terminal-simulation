@@ -2,7 +2,7 @@ package com.slusarczykr.terminal.simulation.action;
 
 import com.slusarczykr.terminal.simulation.action.queue.ActionQueue;
 import com.slusarczykr.terminal.simulation.action.queue.PassengerQueue;
-import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
+import com.slusarczykr.terminal.simulation.coordinator.TerminalSimulationCoordinator;
 import com.slusarczykr.terminal.simulation.model.Flight;
 import com.slusarczykr.terminal.simulation.model.Passenger;
 import deskit.monitors.MonitoredVar;
@@ -17,8 +17,8 @@ public class SecurityCheckPassengerAction extends AbstractAction<Passenger> {
 
     private static final Logger log = LogManager.getLogger(SecurityCheckPassengerAction.class);
 
-    public SecurityCheckPassengerAction(SimulationCoordinator<Passenger> simulationCoordinator) {
-        super(simulationCoordinator);
+    public SecurityCheckPassengerAction(TerminalSimulationCoordinator simulationCoordinator, int index) {
+        super(simulationCoordinator, index);
     }
 
     @Override
@@ -38,14 +38,14 @@ public class SecurityCheckPassengerAction extends AbstractAction<Passenger> {
 
     @Override
     public void action() {
-        log.debug("Starting security check passenger activity");
-        SimulationCoordinator<Passenger> simulationCoordinator = (SimulationCoordinator<Passenger>) getParentSimObject();
+        log.debug("['{}'] Starting security check passenger activity", getIndex());
+        TerminalSimulationCoordinator simulationCoordinator = (TerminalSimulationCoordinator) getParentSimObject();
         ActionQueue<Passenger> actionQueue = getQueue();
 
         while (actionQueue.getLength() > 0) {
             actionQueue.block();
             Passenger passenger = actionQueue.poll();
-            log.debug("Performing passenger security check: '{}'", passenger.getUid());
+            log.debug("['{}'] Performing passenger security check: '{}'", getIndex(), passenger.getUid());
 
             double delay = simulationGenerator.chisquare(7);
             setActionTime(delay);
@@ -54,21 +54,21 @@ public class SecurityCheckPassengerAction extends AbstractAction<Passenger> {
                 break;
             }
             actionQueue.release();
-            log.debug("Passenger: '{}' security check procedure finished", passenger.getUid());
+            log.debug("['{}'] Passenger: '{}' security check procedure finished", getIndex(), passenger.getUid());
             addPassengerToFlightIfAvailable(simulationCoordinator, passenger);
         }
     }
 
-    private void addPassengerToFlightIfAvailable(SimulationCoordinator<Passenger> simulationCoordinator, Passenger passenger) {
-        log.debug("Searching for flight with id: {}", passenger.getFlightId());
+    private void addPassengerToFlightIfAvailable(TerminalSimulationCoordinator simulationCoordinator, Passenger passenger) {
+        log.debug("['{}'] Searching for flight with id: {}", getIndex(), passenger.getFlightId());
         Optional<Flight> maybeFlight = simulationCoordinator.getFlight(passenger.getFlightId(), false);
 
         if (maybeFlight.isPresent()) {
             Flight flight = maybeFlight.get();
-            log.debug("Adding passenger: '{}' to flight: '{}'", passenger.getUid(), flight.getId());
+            log.debug("['{}'] Adding passenger: '{}' to flight: '{}'", getIndex(), passenger.getUid(), flight.getId());
             flight.addPassenger(passenger, false);
         } else {
-            log.debug("Passenger: '{}' missed the flight: '{}'", passenger.getUid(), passenger.getFlightId());
+            log.debug("['{}'] Passenger: '{}' missed the flight: '{}'", getIndex(), passenger.getUid(), passenger.getFlightId());
             simulationCoordinator.addMissedPassenger(passenger);
         }
     }

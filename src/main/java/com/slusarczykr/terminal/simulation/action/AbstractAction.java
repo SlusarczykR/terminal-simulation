@@ -14,18 +14,25 @@ import java.util.Random;
 
 public abstract class AbstractAction<T> extends SimActivity implements Action<T> {
 
+    protected final int index;
     protected final SimulationCoordinator<T> simulationCoordinator;
     protected final SimGenerator simulationGenerator;
     protected final MonitoredVar actionTime;
     protected final Random random;
     protected final ActionQueue<T> actionQueue;
 
-    protected AbstractAction(SimulationCoordinator<T> simulationCoordinator) {
+    protected AbstractAction(SimulationCoordinator<T> simulationCoordinator, int index) {
+        this.index = index;
         this.simulationCoordinator = simulationCoordinator;
         this.simulationGenerator = new SimGenerator();
         this.actionTime = new MonitoredVar(simulationCoordinator);
         this.random = new Random();
         this.actionQueue = createActionQueue();
+    }
+
+    @Override
+    public int getIndex() {
+        return index;
     }
 
     @Override

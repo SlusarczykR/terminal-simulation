@@ -2,42 +2,39 @@ package com.slusarczykr.terminal.simulation.coordinator;
 
 import com.slusarczykr.terminal.simulation.action.Action;
 import com.slusarczykr.terminal.simulation.action.ActionKey;
-import com.slusarczykr.terminal.simulation.model.Flight;
-import com.slusarczykr.terminal.simulation.model.Passenger;
+import com.slusarczykr.terminal.simulation.action.queue.ActionQueueState;
 import deskit.SimActivity;
 import deskit.SimObject;
 import deskit.monitors.MonitoredVar;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
+import java.util.stream.Collectors;
 
-import static java.util.stream.IntStream.rangeClosed;
+import static com.slusarczykr.terminal.simulation.action.queue.ActionQueueState.NOT_OCCUPIED;
 
-public class SimulationCoordinator<T> extends SimObject {
+public abstract class SimulationCoordinator<T> extends SimObject {
 
     private static final Logger log = LogManager.getLogger(SimulationCoordinator.class);
 
     public static final int DEFAULT_FLIGHTS_NUMBER = 10;
 
-    private final Set<SimActivity> activities;
-    private final Map<ActionKey, Action<T>> actions;
-    private final MonitoredVar randomEventActionTime;
-    private final Map<Integer, Flight> flights;
-    private final Set<Flight> departedFlights;
+    protected final Set<SimActivity> activities;
+    protected final Map<ActionKey, List<Action<T>>> actions;
+    protected final MonitoredVar randomEventActionTime;
+    private final Random random;
 
-    public SimulationCoordinator(Function<SimulationCoordinator<T>, Map<ActionKey, Action<T>>> actionsSupplier) {
+    protected SimulationCoordinator() {
         this.activities = ConcurrentHashMap.newKeySet();
-        this.actions = actionsSupplier.apply(this);
+        this.actions = new ConcurrentHashMap<>();
         this.randomEventActionTime = new MonitoredVar(this);
-        this.flights = generateFlights();
-        this.departedFlights = ConcurrentHashMap.newKeySet();
+        this.random = new Random();
     }
 
     public MonitoredVar getRandomEventActionTime() {
@@ -48,92 +45,13 @@ public class SimulationCoordinator<T> extends SimObject {
         this.randomEventActionTime.setValue(delay);
     }
 
-    private Map<Integer, Flight> generateFlights() {
-        Map<Integer, Flight> generatedFlights = new ConcurrentHashMap<>();
-        rangeClosed(1, DEFAULT_FLIGHTS_NUMBER).forEach(idx -> {
-            Flight flight = generateFlight();
-            generatedFlights.put(flight.getId(), flight);
-        });
-
-        return generatedFlights;
-    }
-
-    private Flight generateFlight() {
-        Flight flight = new Flight((SimulationCoordinator<Passenger>) this);
-        log.debug("Generated flight with id: '{}'", flight.getId());
-
-        return flight;
-    }
-
     public void call(ActionKey actionKey) {
         getAction(actionKey).call();
-    }
-
-    public boolean anyFlightAvailable() {
-        return !flights.isEmpty();
-    }
-
-    public List<Integer> getFlightsIds() {
-        return new ArrayList<>(flights.keySet());
-    }
-
-    public void addMissedPassenger(Passenger passenger) {
-        Optional<Flight> maybeFlight = getFlight(passenger.getFlightId(), true);
-        maybeFlight.ifPresent(it -> it.addPassenger(passenger, true));
-    }
-
-    public Optional<Flight> getFlight(int id, boolean departed) {
-        if (!departed) {
-            return Optional.ofNullable(flights.get(id));
-        }
-        return departedFlights.stream()
-                .filter(it -> it.getId() == id)
-                .findFirst();
-    }
-
-    public void removeFlightIfPresent(int id) {
-        Optional.ofNullable(flights.get(id)).ifPresent(it -> {
-            flights.remove(it.getId());
-            departedFlights.add(it);
-            generateFlightIfSimulationIsRunning();
-        });
-    }
-
-    private void generateFlightIfSimulationIsRunning() {
-        if (isSimulationRunning()) {
-            Flight flight = generateFlight();
-
-            if (flight.isExecuted()) {
-                flights.put(flight.getId(), flight);
-            }
-        }
     }
 
     public boolean isSimulationRunning() {
         return simManager.getSimTime() <= simManager.getStopTime()
                 && simManager.getFirstSimObjectFromPendingList() != null;
-    }
-
-    public List<Flight> getDepartedFlights() {
-        return new ArrayList<>(departedFlights);
-    }
-
-    public int getDepartedFlightsNumber() {
-        return departedFlights.size();
-    }
-
-    public int getDepartedPassengersNumber() {
-        return (int) departedFlights.stream()
-                .map(Flight::getPassengers)
-                .mapToLong(Set::size)
-                .sum();
-    }
-
-    public int getMissedFlightPassengersNumber() {
-        return (int) departedFlights.stream()
-                .map(Flight::getMissedPassengers)
-                .mapToLong(Set::size)
-                .sum();
     }
 
     public void addActivity(SimActivity activity) {
@@ -155,11 +73,44 @@ public class SimulationCoordinator<T> extends SimObject {
     }
 
     public Action<T> getAction(ActionKey actionKey) {
-        return actions.get(actionKey);
+        return getAction(actionKey, NOT_OCCUPIED);
+    }
+
+    public Action<T> getAction(ActionKey actionKey, ActionQueueState state) {
+        List<Action<T>> actionInstances = this.actions.get(actionKey);
+        return getActionByQueueType(actionInstances, state);
+    }
+
+    public Action<T> getActionByQueueType(List<Action<T>> actionInstances, ActionQueueState state) {
+        if (hasQueue(actionInstances)) {
+            if (state == NOT_OCCUPIED) {
+                return getActionByNotOccupiedQueue(actionInstances);
+            }
+            return getActionByQueueWithLowestLoad(actionInstances);
+        }
+        return actionInstances.get(random.nextInt(actionInstances.size()));
+    }
+
+    private boolean hasQueue(List<Action<T>> actionInstances) {
+        return actionInstances.stream().anyMatch(it -> it.getQueue() != null);
+    }
+
+    private Action<T> getActionByNotOccupiedQueue(List<Action<T>> actionInstances) {
+        return actionInstances.stream()
+                .filter(it -> !it.getQueue().isOccupied())
+                .findFirst()
+                .orElseGet(() -> getActionByQueueWithLowestLoad(actionInstances));
+    }
+
+    private Action<T> getActionByQueueWithLowestLoad(List<Action<T>> actionInstances) {
+        Map<Integer, List<Action<T>>> queuesByLoad = actionInstances.stream()
+                .collect(Collectors.groupingBy(it -> it.getQueue().getLength(), TreeMap::new, Collectors.toList()));
+
+        return queuesByLoad.entrySet().iterator().next().getValue().get(0);
     }
 
     public MonitoredVar getActionTime(ActionKey actionKey) {
-        Action<T> action = actions.get(actionKey);
+        Action<T> action = getAction(actionKey);
         return action.getActionTime();
     }
 }

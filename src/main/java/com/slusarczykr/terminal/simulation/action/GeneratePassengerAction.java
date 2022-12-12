@@ -1,7 +1,6 @@
 package com.slusarczykr.terminal.simulation.action;
 
-import com.slusarczykr.terminal.simulation.action.queue.ActionQueue;
-import com.slusarczykr.terminal.simulation.coordinator.SimulationCoordinator;
+import com.slusarczykr.terminal.simulation.coordinator.TerminalSimulationCoordinator;
 import com.slusarczykr.terminal.simulation.model.Passenger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,8 +14,8 @@ public class GeneratePassengerAction extends AbstractAction<Passenger> {
 
     private static final Logger log = LogManager.getLogger(GeneratePassengerAction.class);
 
-    public GeneratePassengerAction(SimulationCoordinator<Passenger> simulationCoordinator) {
-        super(simulationCoordinator);
+    public GeneratePassengerAction(TerminalSimulationCoordinator simulationCoordinator, int index) {
+        super(simulationCoordinator, index);
     }
 
     @Override
@@ -30,23 +29,18 @@ public class GeneratePassengerAction extends AbstractAction<Passenger> {
     }
 
     @Override
-    public ActionQueue<Passenger> getQueue() {
-        return null;
-    }
-
-    @Override
     public ActionKey getNextActionKey() {
         return CHECK_IN;
     }
 
     @Override
     public void action() {
-        log.debug("Starting generate passenger activity");
-        SimulationCoordinator<Passenger> simulationCoordinator = (SimulationCoordinator<Passenger>) getParentSimObject();
+        log.debug("['{}'] Starting generate passenger activity", getIndex());
+        TerminalSimulationCoordinator simCoordinator = (TerminalSimulationCoordinator) simulationCoordinator;
 
-        while (simulationCoordinator.anyFlightAvailable()) {
-            Passenger passenger = generatePassenger(simulationCoordinator);
-            log.debug("Passenger: '{}' generated", passenger.getUid());
+        while (simCoordinator.anyFlightAvailable()) {
+            Passenger passenger = generatePassenger(simCoordinator);
+            log.debug("['{}'] Passenger: '{}' generated", getIndex(), passenger.getUid());
             callNextAction(passenger);
 
             double delay = simulationGenerator.chisquare(8);
@@ -58,8 +52,8 @@ public class GeneratePassengerAction extends AbstractAction<Passenger> {
         }
     }
 
-    private Passenger generatePassenger(SimulationCoordinator<Passenger> simulationCoordinator) {
-        log.debug("Generating new passenger");
+    private Passenger generatePassenger(TerminalSimulationCoordinator simulationCoordinator) {
+        log.debug("['{}'] Generating new passenger", getIndex());
         List<Integer> flightsIds = simulationCoordinator.getFlightsIds();
         int flightIdx = random.nextInt(flightsIds.size());
 

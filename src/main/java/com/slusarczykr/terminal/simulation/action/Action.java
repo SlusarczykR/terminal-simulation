@@ -5,6 +5,8 @@ import deskit.monitors.MonitoredVar;
 
 public interface Action<T> {
 
+    int getIndex();
+
     void call();
 
     default void callNextAction() {
