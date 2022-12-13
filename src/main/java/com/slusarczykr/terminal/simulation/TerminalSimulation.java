@@ -38,9 +38,11 @@ public class TerminalSimulation {
 
     private static final String UNSUPPORTED_OPERATION_EXCEPTION = "Unsupported operation type";
 
-    public static void main(String[] args) {
+    static {
         disableSystemLogging();
-        setLoggerLevel("DEBUG");
+    }
+
+    public static void main(String[] args) {
         SimulationConfiguration simulationConfig = new SimulationConfiguration();
 
         while (true) {
@@ -74,9 +76,41 @@ public class TerminalSimulation {
     }
 
     private static void configureSimulation(SimulationConfiguration simulationConfig) {
-        getUserInputAndExecute("Simulation duration in seconds:", it -> simulationConfig.setSimulationDuration(Double.parseDouble(it)));
-        getUserInputAndExecute("Maximum number of simultaneous flights:", it -> simulationConfig.setMaxFlightsNumber(Double.parseDouble(it)));
-        getUserInputAndExecute("Random event probability:", it -> simulationConfig.setRandomEventProbability(Double.parseDouble(it)));
+        while (true) {
+            log.info("\nq - Back\n1 - Overall simulation settings\n2 - Simulation actions queues\n\n");
+            String command = readUserInput("Command:");
+            log.info("\n");
+
+            if (command.equalsIgnoreCase("q")) {
+                break;
+            } else if (command.equals("1")) {
+                setSimulationSettings(simulationConfig);
+            } else if (command.equals("2")) {
+                setSimulationActionsInstances(simulationConfig);
+            } else {
+                log.warn(UNSUPPORTED_OPERATION_EXCEPTION);
+            }
+            log.info("\n");
+        }
+    }
+
+    private static void setSimulationSettings(SimulationConfiguration simulationConfig) {
+        try {
+            getUserInputAndExecute("Simulation duration in seconds:", it -> simulationConfig.setSimulationDuration(Integer.parseInt(it)));
+            getUserInputAndExecute("Maximum number of simultaneous flights:", it -> simulationConfig.setMaxFlightsNumber(Double.parseDouble(it)));
+            getUserInputAndExecute("Random event probability:", it -> simulationConfig.setRandomEventProbability(Double.parseDouble(it)));
+        } catch (Exception e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    private static void setSimulationActionsInstances(SimulationConfiguration simulationConfig) {
+        try {
+            getUserInputAndExecute("Check in action queues:", it -> simulationConfig.setActionInstances(CHECK_IN, Integer.parseInt(it)));
+            getUserInputAndExecute("Security check action queues", it -> simulationConfig.setActionInstances(SECURITY_CHECK, Integer.parseInt(it)));
+        } catch (Exception e) {
+            log.error(e.getMessage());
+        }
     }
 
     private static void getUserInputAndExecute(String label, Consumer<String> setConfig) {
@@ -89,7 +123,7 @@ public class TerminalSimulation {
         TerminalSimulationCoordinator simulationCoordinator = runSimulation(simulationConfig);
 
         while (true) {
-            log.info("\nq - Exit\n1 - Rerun simulation\n2 - Display simulation statistics\n3 - Configure simulation\n4 - Change log level\n\n");
+            log.info("\nq - Back\n1 - Rerun simulation\n2 - Display simulation statistics\n3 - Configure simulation\n4 - Change log level\n\n");
             String command = readUserInput("Command:");
             log.info("\n");
 
@@ -126,8 +160,8 @@ public class TerminalSimulation {
         simManager.startSimulation();
         simulationCoordinator.stop();
         log.info("Simulation finished");
-        log.info("Generated passengers: {}", simulationCoordinator.getAction(GENERATE_PASSENGER).getActionTime().getChanges().size());
-        log.info("Generated random events: {}", simulationCoordinator.getRandomEventActionTime().getChanges().size());
+        log.info("Generated passengers: {}", simulationCoordinator.getActionOccurrences(GENERATE_PASSENGER));
+        log.info("Generated random events: {}", simulationCoordinator.getRandomEventActionOccurrences());
         log.info("Departed flights: {}", simulationCoordinator.getDepartedFlightsNumber());
         log.info("Departed passengers: {}", simulationCoordinator.getDepartedPassengersNumber());
         log.info("Missed flight passengers: {}", simulationCoordinator.getMissedFlightPassengersNumber());
@@ -150,10 +184,14 @@ public class TerminalSimulation {
     }
 
     private static void setLoggerLevel(String level) {
+        level = level.toUpperCase();
+
         if (!AVAILABLE_LOGGER_LEVELS.contains(level)) {
+            log.warn("Invalid logger level '{}' specified. Default '{}' logger level will be applied", level, DEFAULT_LOGGER_LEVEL);
             level = DEFAULT_LOGGER_LEVEL;
         }
-        Level loggerLevel = Level.getLevel(level.toUpperCase());
+        log.info("Changing logger level to '{}'", level);
+        Level loggerLevel = Level.getLevel(level);
         Logger logger = LogManager.getRootLogger();
         Configurator.setAllLevels(logger.getName(), loggerLevel);
     }
@@ -167,8 +205,8 @@ public class TerminalSimulation {
     }
 
     private static void logProcessedPassengers(TerminalSimulationCoordinator simulationCoordinator, ActionKey actionKey) {
-        MonitoredVar actionTime = simulationCoordinator.getActionTime(actionKey);
-        log.info("Total number of passengers processed in: '{}' action - {}", actionKey, actionTime.getChanges().size());
+        int actionOccurrences = simulationCoordinator.getActionOccurrences(actionKey);
+        log.info("Total number of passengers processed in: '{}' action - {}", actionKey, actionOccurrences);
     }
 
     private static void generateAverageStatistics(TerminalSimulationCoordinator simulationCoordinator) {

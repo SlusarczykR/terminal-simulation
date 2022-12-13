@@ -41,6 +41,10 @@ public abstract class SimulationCoordinator<T> extends SimObject {
         return randomEventActionTime;
     }
 
+    public int getRandomEventActionOccurrences() {
+        return randomEventActionTime.getChanges().size();
+    }
+
     public void setRandomEventActionTime(double delay) {
         this.randomEventActionTime.setValue(delay);
     }
@@ -59,8 +63,7 @@ public abstract class SimulationCoordinator<T> extends SimObject {
     }
 
     public void stop() {
-        activities
-                .stream()
+        activities.stream()
                 .filter(Thread::isAlive)
                 .forEach(it -> {
                     try {
@@ -78,17 +81,26 @@ public abstract class SimulationCoordinator<T> extends SimObject {
 
     public Action<T> getAction(ActionKey actionKey, ActionQueueState state) {
         List<Action<T>> actionInstances = this.actions.get(actionKey);
-        return getActionByQueueType(actionInstances, state);
+
+        if (false) {
+            return getActionByQueueType(actionInstances, state);
+        }
+        return getRandomActionInstance(actionInstances);
     }
 
-    public Action<T> getActionByQueueType(List<Action<T>> actionInstances, ActionQueueState state) {
+    private Action<T> getRandomActionInstance(List<Action<T>> actionInstances) {
+        int actionIndex = random.nextInt(actionInstances.size());
+        return actionInstances.get(actionIndex);
+    }
+
+    private Action<T> getActionByQueueType(List<Action<T>> actionInstances, ActionQueueState state) {
         if (hasQueue(actionInstances)) {
             if (state == NOT_OCCUPIED) {
                 return getActionByNotOccupiedQueue(actionInstances);
             }
             return getActionByQueueWithLowestLoad(actionInstances);
         }
-        return actionInstances.get(random.nextInt(actionInstances.size()));
+        return getRandomActionInstance(actionInstances);
     }
 
     private boolean hasQueue(List<Action<T>> actionInstances) {
@@ -112,5 +124,10 @@ public abstract class SimulationCoordinator<T> extends SimObject {
     public MonitoredVar getActionTime(ActionKey actionKey) {
         Action<T> action = getAction(actionKey);
         return action.getActionTime();
+    }
+
+    public int getActionOccurrences(ActionKey actionKey) {
+        Action<T> action = getAction(actionKey);
+        return action.getActionTime().getChanges().size();
     }
 }
