@@ -16,10 +16,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.function.Consumer;
 
@@ -47,7 +46,7 @@ public class TerminalSimulation {
 
         while (true) {
             log.info("\nq - Exit\n1 - Run simulation\n2 - Configure simulation\n3 - Change log level\n\n");
-            String command = readUserInput("Command:");
+            String command = readUserCommand();
             log.info("\n");
 
             if (command.equalsIgnoreCase("q")) {
@@ -55,7 +54,7 @@ public class TerminalSimulation {
             } else if (command.equals("1")) {
                 displaySimulationMenu(simulationConfig);
             } else if (command.equals("2")) {
-                configureSimulation(simulationConfig);
+                displaySimulationConfigurationMenu(simulationConfig);
             } else if (command.equals("3")) {
                 setLoggerLevel(readUserInput(String.format("Logger level %s:", Arrays.toString(AVAILABLE_LOGGER_LEVELS.toArray()))));
             } else {
@@ -63,6 +62,10 @@ public class TerminalSimulation {
             }
             log.info("\n");
         }
+    }
+
+    private static String readUserCommand() {
+        return readUserInput("Command:");
     }
 
     private static void disableSystemLogging() {
@@ -75,10 +78,10 @@ public class TerminalSimulation {
         System.setErr(dummyWriter);
     }
 
-    private static void configureSimulation(SimulationConfiguration simulationConfig) {
+    private static void displaySimulationConfigurationMenu(SimulationConfiguration simulationConfig) {
         while (true) {
             log.info("\nq - Back\n1 - Overall simulation settings\n2 - Simulation actions queues\n\n");
-            String command = readUserInput("Command:");
+            String command = readUserCommand();
             log.info("\n");
 
             if (command.equalsIgnoreCase("q")) {
@@ -124,7 +127,7 @@ public class TerminalSimulation {
 
         while (true) {
             log.info("\nq - Back\n1 - Rerun simulation\n2 - Display simulation statistics\n3 - Configure simulation\n4 - Change log level\n\n");
-            String command = readUserInput("Command:");
+            String command = readUserCommand();
             log.info("\n");
 
             if (command.equalsIgnoreCase("q")) {
@@ -132,9 +135,9 @@ public class TerminalSimulation {
             } else if (command.equals("1")) {
                 simulationCoordinator = runSimulation(simulationConfig);
             } else if (command.equals("2")) {
-                displaySimulationStatistics(simulationCoordinator);
+                displaySimulationDetailsMenu(simulationCoordinator);
             } else if (command.equals("3")) {
-                configureSimulation(simulationConfig);
+                displaySimulationConfigurationMenu(simulationConfig);
             } else if (command.equals("4")) {
                 setLoggerLevel(readUserInput(String.format("Logger level %s:", Arrays.toString(AVAILABLE_LOGGER_LEVELS.toArray()))));
             } else {
@@ -144,10 +147,46 @@ public class TerminalSimulation {
         }
     }
 
-    private static void displaySimulationStatistics(TerminalSimulationCoordinator simulationCoordinator) {
-        Instant start = Instant.now();
-        log.info("Simulation duration: {}ms", Duration.between(start, Instant.now()).toMillis());
-        log.info("Departed flights: {}", simulationCoordinator.getDepartedFlightsNumber());
+    private static void displaySimulationDetailsMenu(TerminalSimulationCoordinator simulationCoordinator) {
+        while (true) {
+            log.info("\nq - Back\n1 - Display simulation statistics\n2 - Display simulation histogram\n\n");
+            String command = readUserCommand();
+            log.info("\n");
+
+            if (command.equalsIgnoreCase("q")) {
+                break;
+            } else if (command.equals("1")) {
+                generateStatistics(simulationCoordinator);
+            } else if (command.equals("2")) {
+                displaySimulationHistogramMenu(simulationCoordinator);
+            } else {
+                log.warn(UNSUPPORTED_OPERATION_EXCEPTION);
+            }
+            log.info("\n");
+        }
+    }
+
+    private static void displaySimulationHistogramMenu(TerminalSimulationCoordinator simulationCoordinator) {
+        while (true) {
+            log.info("\nq - Back\n1 - Display action histogram\n\n");
+            String command = readUserCommand();
+            log.info("\n");
+
+            if (command.equalsIgnoreCase("q")) {
+                break;
+            } else if (command.equals("1")) {
+                String input = readUserInput(String.format("Action key %s:", Arrays.toString(ActionKey.values())));
+                try {
+                    ActionKey actionKey = ActionKey.valueOf(input.toUpperCase());
+                    generateHistogram(simulationCoordinator, actionKey, actionKey.name());
+                } catch (Exception e) {
+                    log.error("Invalid action key: {}", input);
+                }
+            } else {
+                log.warn(UNSUPPORTED_OPERATION_EXCEPTION);
+            }
+            log.info("\n");
+        }
     }
 
     private static TerminalSimulationCoordinator runSimulation(SimulationConfiguration simulationConfig) {
@@ -160,13 +199,17 @@ public class TerminalSimulation {
         simManager.startSimulation();
         simulationCoordinator.stop();
         log.info("Simulation finished");
-        log.info("Generated passengers: {}", simulationCoordinator.getActionOccurrences(GENERATE_PASSENGER));
+        displayGeneralSimulationStatistics(simulationCoordinator);
+
+        return simulationCoordinator;
+    }
+
+    private static void displayGeneralSimulationStatistics(TerminalSimulationCoordinator simulationCoordinator) {
+        log.info("Generated passengers: {}", simulationCoordinator.getActionInvocations(GENERATE_PASSENGER));
         log.info("Generated random events: {}", simulationCoordinator.getRandomEventActionOccurrences());
         log.info("Departed flights: {}", simulationCoordinator.getDepartedFlightsNumber());
         log.info("Departed passengers: {}", simulationCoordinator.getDepartedPassengersNumber());
         log.info("Missed flight passengers: {}", simulationCoordinator.getMissedFlightPassengersNumber());
-
-        return simulationCoordinator;
     }
 
     private static SimManager initSimManager(double simulationDuration) {
@@ -197,6 +240,7 @@ public class TerminalSimulation {
     }
 
     private static void generateStatistics(TerminalSimulationCoordinator simulationCoordinator) {
+        displayGeneralSimulationStatistics(simulationCoordinator);
         logProcessedPassengers(simulationCoordinator, GENERATE_PASSENGER);
         logProcessedPassengers(simulationCoordinator, CHECK_IN);
         logProcessedPassengers(simulationCoordinator, SECURITY_CHECK);
@@ -205,8 +249,13 @@ public class TerminalSimulation {
     }
 
     private static void logProcessedPassengers(TerminalSimulationCoordinator simulationCoordinator, ActionKey actionKey) {
-        int actionOccurrences = simulationCoordinator.getActionOccurrences(actionKey);
-        log.info("Total number of passengers processed in: '{}' action - {}", actionKey, actionOccurrences);
+        int actionInvocations = simulationCoordinator.getActionInvocations(actionKey);
+        log.info("Total number of passengers processed in: '{}' action - {}", actionKey, actionInvocations);
+        Map<Integer, MonitoredVar> actionTimes = simulationCoordinator.getActionTimes(actionKey);
+        actionTimes.forEach((index, actionTime) -> {
+            int actionInstanceInvocations = actionTime.getChanges().size();
+            log.info("Total number of passengers processed in: '{}' action queue index: '{}' - {}", actionKey, index, actionInstanceInvocations);
+        });
     }
 
     private static void generateAverageStatistics(TerminalSimulationCoordinator simulationCoordinator) {
@@ -220,10 +269,11 @@ public class TerminalSimulation {
         return BigDecimal.valueOf(arithmeticMean).setScale(2, HALF_UP).doubleValue();
     }
 
-    private static void generateServiceTimeHistogram(TerminalSimulationCoordinator simulationCoordinator) {
-        log.info("Generating service time histogram");
-        Diagram serviceTimeHistogram = new Diagram("Histogram", "Service Time");
-        serviceTimeHistogram.add(simulationCoordinator.getActionTime(CHECK_IN), GREEN);
+    private static void generateHistogram(TerminalSimulationCoordinator simulationCoordinator, ActionKey actionKey, String title) {
+        log.info("Generating '{}' action histogram", actionKey.name());
+        MonitoredVar actionTime = simulationCoordinator.getActionTime(actionKey);
+        Diagram serviceTimeHistogram = new Diagram("Histogram", title);
+        serviceTimeHistogram.add(actionTime, GREEN);
         serviceTimeHistogram.show();
     }
 }

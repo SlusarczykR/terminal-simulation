@@ -30,7 +30,7 @@ public class SimulationConfiguration {
     private final Map<ActionKey, Action> actionConfigs;
 
     public SimulationConfiguration() {
-        this.simulationDuration = DEFAULT_SIMULATION_DURATION;
+        this.simulationDuration = convertToMillis(DEFAULT_SIMULATION_DURATION);
         this.maxFlightsNumber = DEFAULT_MAX_FLIGHTS_NUMBER;
         this.randomEventProbability = DEFAULT_RANDOM_EVENT_PROBABILITY;
         this.actionConfigs = initActionConfigs();
@@ -53,7 +53,11 @@ public class SimulationConfiguration {
         if (simulationDuration < MIN_SIMULATION_DURATION) {
             throw new IllegalArgumentException(String.format("Invalid simulation duration value! Min value: %d", MIN_SIMULATION_DURATION));
         }
-        this.simulationDuration = (int) Duration.ofSeconds(simulationDuration).toMillis();
+        this.simulationDuration = convertToMillis(simulationDuration);
+    }
+
+    private int convertToMillis(int durationInSeconds) {
+        return (int) Duration.ofSeconds(durationInSeconds).toMillis();
     }
 
     public double getMaxFlightsNumber() {

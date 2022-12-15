@@ -5,6 +5,8 @@ import com.slusarczykr.terminal.simulation.action.ActionKey;
 import com.slusarczykr.terminal.simulation.action.queue.ActionQueueState;
 import deskit.SimActivity;
 import deskit.SimObject;
+import deskit.monitors.Change;
+import deskit.monitors.ChangesList;
 import deskit.monitors.MonitoredVar;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -75,12 +77,16 @@ public abstract class SimulationCoordinator<T> extends SimObject {
                 });
     }
 
+    public List<Action<T>> getActionInstances(ActionKey actionKey) {
+        return actions.get(actionKey);
+    }
+
     public Action<T> getAction(ActionKey actionKey) {
         return getAction(actionKey, NOT_OCCUPIED);
     }
 
     public Action<T> getAction(ActionKey actionKey, ActionQueueState state) {
-        List<Action<T>> actionInstances = this.actions.get(actionKey);
+        List<Action<T>> actionInstances = actions.get(actionKey);
 
         if (false) {
             return getActionByQueueType(actionInstances, state);
@@ -121,13 +127,31 @@ public abstract class SimulationCoordinator<T> extends SimObject {
         return queuesByLoad.entrySet().iterator().next().getValue().get(0);
     }
 
-    public MonitoredVar getActionTime(ActionKey actionKey) {
-        Action<T> action = getAction(actionKey);
-        return action.getActionTime();
+    public Map<Integer, MonitoredVar> getActionTimes(ActionKey actionKey) {
+        List<Action<T>> actionInstances = getActionInstances(actionKey);
+        return actionInstances.stream()
+                .collect(Collectors.toMap(Action::getIndex, Action::getActionTime));
     }
 
-    public int getActionOccurrences(ActionKey actionKey) {
-        Action<T> action = getAction(actionKey);
-        return action.getActionTime().getChanges().size();
+    public MonitoredVar getActionTime(ActionKey actionKey) {
+        List<Action<T>> actionInstances = getActionInstances(actionKey);
+        MonitoredVar actionTime = new MonitoredVar(this);
+        actionInstances.stream()
+                .map(it -> it.getActionTime().getChanges())
+                .forEach(it -> addChanges(actionTime, it));
+
+        return actionTime;
+    }
+
+    private void addChanges(MonitoredVar monitoredVar, ChangesList changesList) {
+        for (int i = 0; i < changesList.size(); i++) {
+            Change change = changesList.get(i);
+            monitoredVar.getChanges().add(change);
+        }
+    }
+
+    public int getActionInvocations(ActionKey actionKey) {
+        MonitoredVar actionTime = getActionTime(actionKey);
+        return actionTime.getChanges().size();
     }
 }
