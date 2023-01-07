@@ -31,12 +31,14 @@ public abstract class SimulationCoordinator<T> extends SimObject {
     protected final Map<ActionKey, List<Action<T>>> actions;
     protected final MonitoredVar randomEventActionTime;
     private final Random random;
+    private final boolean actionByQueueTypeEnabled;
 
     protected SimulationCoordinator() {
         this.activities = ConcurrentHashMap.newKeySet();
         this.actions = new ConcurrentHashMap<>();
         this.randomEventActionTime = new MonitoredVar(this);
         this.random = new Random();
+        this.actionByQueueTypeEnabled = false;
     }
 
     public MonitoredVar getRandomEventActionTime() {
@@ -88,7 +90,7 @@ public abstract class SimulationCoordinator<T> extends SimObject {
     public Action<T> getAction(ActionKey actionKey, ActionQueueState state) {
         List<Action<T>> actionInstances = actions.get(actionKey);
 
-        if (false) {
+        if (actionByQueueTypeEnabled) {
             return getActionByQueueType(actionInstances, state);
         }
         return getRandomActionInstance(actionInstances);
@@ -143,7 +145,7 @@ public abstract class SimulationCoordinator<T> extends SimObject {
         return actionTime;
     }
 
-    private void addChanges(MonitoredVar monitoredVar, ChangesList changesList) {
+    protected void addChanges(MonitoredVar monitoredVar, ChangesList changesList) {
         for (int i = 0; i < changesList.size(); i++) {
             Change change = changesList.get(i);
             monitoredVar.getChanges().add(change);

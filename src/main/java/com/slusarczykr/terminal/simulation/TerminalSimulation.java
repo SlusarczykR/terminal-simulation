@@ -21,12 +21,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.slusarczykr.terminal.simulation.action.ActionKey.CHECK_IN;
+import static com.slusarczykr.terminal.simulation.action.ActionKey.DEPARTURE_FLIGHT;
 import static com.slusarczykr.terminal.simulation.action.ActionKey.GENERATE_PASSENGER;
+import static com.slusarczykr.terminal.simulation.action.ActionKey.RANDOM;
 import static com.slusarczykr.terminal.simulation.action.ActionKey.SECURITY_CHECK;
 import static java.awt.Color.GREEN;
 import static java.math.RoundingMode.HALF_UP;
+import static javax.swing.WindowConstants.DISPOSE_ON_CLOSE;
 
 public class TerminalSimulation {
 
@@ -36,6 +42,9 @@ public class TerminalSimulation {
     private static final String DEFAULT_LOGGER_LEVEL = "INFO";
 
     private static final String UNSUPPORTED_OPERATION_EXCEPTION = "Unsupported operation type";
+    private static final List<ActionKey> ALLOWED_ACTIONS = Arrays.asList(GENERATE_PASSENGER, CHECK_IN, SECURITY_CHECK, DEPARTURE_FLIGHT, RANDOM);
+
+    private static TerminalSimulationCoordinator simulationCoordinator = null;
 
     static {
         disableSystemLogging();
@@ -123,8 +132,9 @@ public class TerminalSimulation {
     }
 
     private static void displaySimulationMenu(SimulationConfiguration simulationConfig) {
-        TerminalSimulationCoordinator simulationCoordinator = runSimulation(simulationConfig);
-
+        if (simulationCoordinator == null) {
+            simulationCoordinator = runSimulation(simulationConfig);
+        }
         while (true) {
             log.info("\nq - Back\n1 - Rerun simulation\n2 - Display simulation statistics\n3 - Configure simulation\n4 - Change log level\n\n");
             String command = readUserCommand();
@@ -158,30 +168,7 @@ public class TerminalSimulation {
             } else if (command.equals("1")) {
                 generateStatistics(simulationCoordinator);
             } else if (command.equals("2")) {
-                displaySimulationHistogramMenu(simulationCoordinator);
-            } else {
-                log.warn(UNSUPPORTED_OPERATION_EXCEPTION);
-            }
-            log.info("\n");
-        }
-    }
-
-    private static void displaySimulationHistogramMenu(TerminalSimulationCoordinator simulationCoordinator) {
-        while (true) {
-            log.info("\nq - Back\n1 - Display action histogram\n\n");
-            String command = readUserCommand();
-            log.info("\n");
-
-            if (command.equalsIgnoreCase("q")) {
-                break;
-            } else if (command.equals("1")) {
-                String input = readUserInput(String.format("Action key %s:", Arrays.toString(ActionKey.values())));
-                try {
-                    ActionKey actionKey = ActionKey.valueOf(input.toUpperCase());
-                    generateHistogram(simulationCoordinator, actionKey, actionKey.name());
-                } catch (Exception e) {
-                    log.error("Invalid action key: {}", input);
-                }
+                displayHistogram(simulationCoordinator);
             } else {
                 log.warn(UNSUPPORTED_OPERATION_EXCEPTION);
             }
@@ -191,13 +178,14 @@ public class TerminalSimulation {
 
     private static TerminalSimulationCoordinator runSimulation(SimulationConfiguration simulationConfig) {
         double simulationDuration = simulationConfig.getSimulationDuration();
-
         log.info("Starting simulation with duration: {}ms", simulationDuration);
+
         SimManager simManager = initSimManager(simulationDuration);
         TerminalSimulationCoordinator simulationCoordinator = new TerminalSimulationCoordinator(simulationConfig);
         simulationCoordinator.call(GENERATE_PASSENGER);
         simManager.startSimulation();
         simulationCoordinator.stop();
+
         log.info("Simulation finished");
         displayGeneralSimulationStatistics(simulationCoordinator);
 
@@ -269,11 +257,42 @@ public class TerminalSimulation {
         return BigDecimal.valueOf(arithmeticMean).setScale(2, HALF_UP).doubleValue();
     }
 
-    private static void generateHistogram(TerminalSimulationCoordinator simulationCoordinator, ActionKey actionKey, String title) {
-        log.info("Generating '{}' action histogram", actionKey.name());
-        MonitoredVar actionTime = simulationCoordinator.getActionTime(actionKey);
+    private static void displayHistogram(TerminalSimulationCoordinator simulationCoordinator) {
+        Map<Integer, ActionKey> actionKeys = IntStream.range(0, ALLOWED_ACTIONS.size()).boxed()
+                .collect(Collectors.toMap(Function.identity(), ALLOWED_ACTIONS::get));
+
+        String input = readUserInput(String.format("Action %s", Arrays.toString(toActionOptions(actionKeys).toArray())));
+        try {
+            ActionKey actionKey = actionKeys.get(Integer.parseInt(input));
+
+            if (!ALLOWED_ACTIONS.contains(actionKey)) {
+                throw new IllegalArgumentException("Action key is not valid");
+            }
+            log.info("Generating '{}' action histogram", actionKey.name());
+            MonitoredVar actionTime = getActionTime(simulationCoordinator, actionKey);
+            generateHistogram(actionTime, actionKey.name());
+        } catch (Exception e) {
+            log.error("Invalid action key: {}", input);
+        }
+    }
+
+    private static List<String> toActionOptions(Map<Integer, ActionKey> actionKeys) {
+        return actionKeys.entrySet().stream().map(Object::toString).collect(Collectors.toList());
+    }
+
+    private static MonitoredVar getActionTime(TerminalSimulationCoordinator simulationCoordinator, ActionKey actionKey) {
+        if (actionKey == RANDOM) {
+            return simulationCoordinator.getRandomEventActionTime();
+        } else if (actionKey == DEPARTURE_FLIGHT) {
+            return simulationCoordinator.getDepartureFlightActionTime();
+        }
+        return simulationCoordinator.getActionTime(actionKey);
+    }
+
+    private static void generateHistogram(MonitoredVar actionTime, String title) {
         Diagram serviceTimeHistogram = new Diagram("Histogram", title);
         serviceTimeHistogram.add(actionTime, GREEN);
+        serviceTimeHistogram.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         serviceTimeHistogram.show();
     }
 }

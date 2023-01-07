@@ -16,6 +16,7 @@ public class Flight extends SimObject {
     private final int id;
     private final Set<Passenger> passengers;
     private final Set<Passenger> missedPassengers;
+    private final DepartureFlightAction action;
     private final boolean executed;
 
     public Flight(TerminalSimulationCoordinator simulationCoordinator) {
@@ -23,11 +24,11 @@ public class Flight extends SimObject {
         this.id = flightIdOffset++;
         this.passengers = ConcurrentHashMap.newKeySet();
         this.missedPassengers = ConcurrentHashMap.newKeySet();
+        this.action = new DepartureFlightAction(simulationCoordinator, this);
         this.executed = callDepartureFlightAction();
     }
 
     private boolean callDepartureFlightAction() {
-        DepartureFlightAction action = new DepartureFlightAction(simulationCoordinator, this);
         boolean shouldStartAction = shouldStartDepartureFlightAction(action);
 
         if (shouldStartAction) {
@@ -48,10 +49,6 @@ public class Flight extends SimObject {
         return id;
     }
 
-    public boolean isExecuted() {
-        return executed;
-    }
-
     public void addPassenger(Passenger passenger, boolean missed) {
         if (missed) {
             this.missedPassengers.add(passenger);
@@ -66,6 +63,14 @@ public class Flight extends SimObject {
 
     public Set<Passenger> getMissedPassengers() {
         return missedPassengers;
+    }
+
+    public DepartureFlightAction getAction() {
+        return action;
+    }
+
+    public boolean isExecuted() {
+        return executed;
     }
 
     @Override

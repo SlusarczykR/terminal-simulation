@@ -8,6 +8,7 @@ import com.slusarczykr.terminal.simulation.action.SecurityCheckPassengerAction;
 import com.slusarczykr.terminal.simulation.config.SimulationConfiguration;
 import com.slusarczykr.terminal.simulation.model.Flight;
 import com.slusarczykr.terminal.simulation.model.Passenger;
+import deskit.monitors.MonitoredVar;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -90,9 +91,20 @@ public class TerminalSimulationCoordinator extends SimulationCoordinator<Passeng
         return flight;
     }
 
+    public MonitoredVar getDepartureFlightActionTime() {
+        List<Action<?>> actions = getDepartedFlightActions();
+        MonitoredVar actionTime = new MonitoredVar(this);
+        actions.stream()
+                .map(it -> it.getActionTime().getChanges())
+                .forEach(it -> addChanges(actionTime, it));
 
-    public List<Flight> getDepartedFlights() {
-        return new ArrayList<>(departedFlights);
+        return actionTime;
+    }
+
+    private List<Action<?>> getDepartedFlightActions() {
+        return departedFlights.stream()
+                .map(Flight::getAction)
+                .collect(Collectors.toList());
     }
 
     public int getDepartedFlightsNumber() {

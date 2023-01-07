@@ -10,6 +10,7 @@ public enum ActionKey {
     CHECK_IN,
     SECURITY_CHECK,
     DEPARTURE_FLIGHT,
+    RANDOM,
     TOILET,
     DINNER,
     SHOPPING;

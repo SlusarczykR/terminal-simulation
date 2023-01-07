@@ -38,6 +38,7 @@ public class DepartureFlightAction extends AbstractAction<Passenger> {
     @Override
     public void action() {
         log.info("['{}'] Flight: '{}' will be ready for passengers boarding after {}ms", getIndex(), flight.getId(), format(flightPreparationTime));
+        setActionTime(flightPreparationTime + departureTime);
         await(flightPreparationTime);
 
         log.info("['{}'] Flight: '{}' will depart for {}ms", getIndex(), flight.getId(), format(departureTime));
