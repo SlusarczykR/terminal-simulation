@@ -8,7 +8,10 @@ import deskit.monitors.MonitoredVar;
 import deskit.random.SimGenerator;
 import org.apache.logging.log4j.Logger;
 
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Random;
 
@@ -119,6 +122,11 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
     }
 
     protected double format(double number) {
-        return Double.parseDouble(String.format("%.2f", number));
+        try {
+            NumberFormat format = NumberFormat.getInstance(Locale.getDefault());
+            return format.parse(String.format("%.2f", number)).doubleValue();
+        } catch (ParseException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 }

@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
 
+import java.awt.event.WindowListener;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -32,7 +34,6 @@ import static com.slusarczykr.terminal.simulation.action.ActionKey.RANDOM;
 import static com.slusarczykr.terminal.simulation.action.ActionKey.SECURITY_CHECK;
 import static java.awt.Color.GREEN;
 import static java.math.RoundingMode.HALF_UP;
-import static javax.swing.WindowConstants.DISPOSE_ON_CLOSE;
 
 public class TerminalSimulation {
 
@@ -292,9 +293,21 @@ public class TerminalSimulation {
     }
 
     private static void generateHistogram(MonitoredVar actionTime, String title) {
-        Diagram serviceTimeHistogram = new Diagram("Histogram", title);
-        serviceTimeHistogram.add(actionTime, GREEN);
-        serviceTimeHistogram.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        serviceTimeHistogram.show();
+        Diagram diagram = createDiagram(title);
+        diagram.add(actionTime, GREEN);
+        diagram.show();
+    }
+
+    private static Diagram createDiagram(String title) {
+        Diagram diagram = new Diagram("Histogram", title);
+        Optional<WindowListener> maybeWindowListener = findDiagramWindowListener(diagram);
+        maybeWindowListener.ifPresent(diagram::removeWindowListener);
+
+        return diagram;
+    }
+
+    private static Optional<WindowListener> findDiagramWindowListener(Diagram diagram) {
+        return Arrays.stream(diagram.getWindowListeners())
+                .findFirst();
     }
 }
