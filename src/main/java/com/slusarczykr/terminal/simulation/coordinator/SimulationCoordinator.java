@@ -156,4 +156,6 @@ public abstract class SimulationCoordinator<T> extends SimObject {
         MonitoredVar actionTime = getActionTime(actionKey);
         return actionTime.getChanges().size();
     }
+
+    public abstract double getRandomEventProbability();
 }

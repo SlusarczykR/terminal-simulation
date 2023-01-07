@@ -31,13 +31,15 @@ public class TerminalSimulationCoordinator extends SimulationCoordinator<Passeng
 
     private static final Logger log = LogManager.getLogger(TerminalSimulationCoordinator.class);
 
+    private final SimulationConfiguration simulationConfig;
     private final Map<Integer, Flight> flights;
     private final Set<Flight> departedFlights;
 
     public TerminalSimulationCoordinator(SimulationConfiguration simulationConfig) {
         super();
+        this.simulationConfig = simulationConfig;
         this.actions.putAll(createSimulationActions(simulationConfig));
-        this.flights = generateFlights();
+        this.flights = generateFlights(simulationConfig.getMaxFlightsNumber());
         this.departedFlights = ConcurrentHashMap.newKeySet();
     }
 
@@ -74,9 +76,9 @@ public class TerminalSimulationCoordinator extends SimulationCoordinator<Passeng
         return Collections.emptyList();
     }
 
-    private Map<Integer, Flight> generateFlights() {
+    private Map<Integer, Flight> generateFlights(int maxFlightsNumber) {
         Map<Integer, Flight> generatedFlights = new ConcurrentHashMap<>();
-        rangeClosed(1, DEFAULT_FLIGHTS_NUMBER).forEach(idx -> {
+        rangeClosed(1, maxFlightsNumber).forEach(idx -> {
             Flight flight = generateFlight();
             generatedFlights.put(flight.getId(), flight);
         });
@@ -164,5 +166,10 @@ public class TerminalSimulationCoordinator extends SimulationCoordinator<Passeng
                 flights.put(flight.getId(), flight);
             }
         }
+    }
+
+    @Override
+    public double getRandomEventProbability() {
+        return simulationConfig.getRandomEventProbability();
     }
 }

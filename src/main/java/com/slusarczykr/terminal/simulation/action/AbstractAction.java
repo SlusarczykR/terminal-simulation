@@ -82,7 +82,7 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
     protected abstract Logger getLogger();
 
     private Optional<ActionKey> getRandomNextActionKey() {
-        if (randomEventEnabled() && generateProbability(0.1)) {
+        if (randomEventEnabled() && isRandomEvent()) {
             return Optional.of(getRandomEventActionKey());
         }
         return Optional.empty();
@@ -90,9 +90,9 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
 
     private ActionKey getRandomEventActionKey() {
         List<ActionKey> randomEventActionKeys = ActionKey.getRandomEventActionKeys();
-        int index = random.nextInt(randomEventActionKeys.size());
+        int idx = random.nextInt(randomEventActionKeys.size());
 
-        return randomEventActionKeys.get(index);
+        return randomEventActionKeys.get(idx);
     }
 
     @Override
@@ -109,11 +109,8 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
         return actionTime;
     }
 
-    protected boolean generateProbability(double percentage) {
-        if (percentage <= 0.0) {
-            percentage = 0.5;
-        }
-        return random.nextDouble() < percentage;
+    private boolean isRandomEvent() {
+        return random.nextDouble() < simulationCoordinator.getRandomEventProbability();
     }
 
     protected boolean await(double delay) {

@@ -109,7 +109,7 @@ public class TerminalSimulation {
     private static void setSimulationSettings(SimulationConfiguration simulationConfig) {
         try {
             getUserInputAndExecute("Simulation duration in seconds:", it -> simulationConfig.setSimulationDuration(Integer.parseInt(it)));
-            getUserInputAndExecute("Maximum number of simultaneous flights:", it -> simulationConfig.setMaxFlightsNumber(Double.parseDouble(it)));
+            getUserInputAndExecute("Maximum number of simultaneous flights:", it -> simulationConfig.setMaxFlightsNumber(Integer.parseInt(it)));
             getUserInputAndExecute("Random event probability:", it -> simulationConfig.setRandomEventProbability(Double.parseDouble(it)));
         } catch (Exception e) {
             log.error(e.getMessage());
@@ -277,7 +277,9 @@ public class TerminalSimulation {
     }
 
     private static List<String> toActionOptions(Map<Integer, ActionKey> actionKeys) {
-        return actionKeys.entrySet().stream().map(Object::toString).collect(Collectors.toList());
+        return actionKeys.entrySet().stream()
+                .map(Object::toString)
+                .collect(Collectors.toList());
     }
 
     private static MonitoredVar getActionTime(TerminalSimulationCoordinator simulationCoordinator, ActionKey actionKey) {
