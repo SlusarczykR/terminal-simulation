@@ -72,6 +72,7 @@ public class TerminalSimulation {
             }
             log.info("\n");
         }
+        System.exit(0);
     }
 
     private static String readUserCommand() {
