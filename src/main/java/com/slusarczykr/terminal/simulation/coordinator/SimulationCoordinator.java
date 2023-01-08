@@ -25,8 +25,6 @@ public abstract class SimulationCoordinator<T> extends SimObject {
 
     private static final Logger log = LogManager.getLogger(SimulationCoordinator.class);
 
-    public static final int DEFAULT_FLIGHTS_NUMBER = 10;
-
     protected final Set<SimActivity> activities;
     protected final Map<ActionKey, List<Action<T>>> actions;
     protected final MonitoredVar randomEventActionTime;
