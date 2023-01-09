@@ -36,7 +36,7 @@ public class TerminalSimulationCoordinator extends SimulationCoordinator<Passeng
     private final Set<Flight> departedFlights;
 
     public TerminalSimulationCoordinator(SimulationConfiguration simulationConfig) {
-        super();
+        super(simulationConfig.getSimulationDuration());
         this.simulationConfig = simulationConfig;
         this.actions.putAll(createSimulationActions(simulationConfig));
         this.flights = generateFlights(simulationConfig.getMaxFlightsNumber());
@@ -93,6 +93,13 @@ public class TerminalSimulationCoordinator extends SimulationCoordinator<Passeng
         return flight;
     }
 
+    @Override
+    public void startSimulation() {
+        call(GENERATE_PASSENGER);
+        simulationManager.startSimulation();
+        stop();
+    }
+
     public MonitoredVar getDepartureFlightActionTime() {
         List<Action<?>> actions = getDepartedFlightActions();
         MonitoredVar actionTime = new MonitoredVar(this);
@@ -126,7 +133,6 @@ public class TerminalSimulationCoordinator extends SimulationCoordinator<Passeng
                 .mapToLong(Set::size)
                 .sum();
     }
-
 
     public boolean anyFlightAvailable() {
         return !flights.isEmpty();

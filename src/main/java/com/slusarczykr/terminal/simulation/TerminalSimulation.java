@@ -3,7 +3,6 @@ package com.slusarczykr.terminal.simulation;
 import com.slusarczykr.terminal.simulation.action.ActionKey;
 import com.slusarczykr.terminal.simulation.config.SimulationConfiguration;
 import com.slusarczykr.terminal.simulation.coordinator.TerminalSimulationCoordinator;
-import deskit.SimManager;
 import deskit.monitors.Diagram;
 import deskit.monitors.MonitoredVar;
 import deskit.monitors.Statistics;
@@ -179,14 +178,9 @@ public class TerminalSimulation {
     }
 
     private static TerminalSimulationCoordinator runSimulation(SimulationConfiguration simulationConfig) {
-        double simulationDuration = simulationConfig.getSimulationDuration();
-        log.info("Starting simulation with duration: {}ms", simulationDuration);
-
-        SimManager simManager = initSimManager(simulationDuration);
+        log.info("Starting simulation with duration: {}ms", simulationConfig.getSimulationDuration());
         TerminalSimulationCoordinator simulationCoordinator = new TerminalSimulationCoordinator(simulationConfig);
-        simulationCoordinator.call(GENERATE_PASSENGER);
-        simManager.startSimulation();
-        simulationCoordinator.stop();
+        simulationCoordinator.startSimulation();
 
         log.info("Simulation finished");
         displayGeneralSimulationStatistics(simulationCoordinator);
@@ -200,14 +194,6 @@ public class TerminalSimulation {
         log.info("Departed flights: {}", simulationCoordinator.getDepartedFlightsNumber());
         log.info("Departed passengers: {}", simulationCoordinator.getDepartedPassengersNumber());
         log.info("Missed flight passengers: {}", simulationCoordinator.getMissedFlightPassengersNumber());
-    }
-
-    private static SimManager initSimManager(double simulationDuration) {
-        SimManager simManager = SimManager.getSimManager();
-        simManager.setSimTime(0.0);
-        simManager.setStopTime(simulationDuration);
-
-        return simManager;
     }
 
     private static String readUserInput(String label) {

@@ -4,6 +4,7 @@ import com.slusarczykr.terminal.simulation.action.Action;
 import com.slusarczykr.terminal.simulation.action.ActionKey;
 import com.slusarczykr.terminal.simulation.action.queue.ActionQueueState;
 import deskit.SimActivity;
+import deskit.SimManager;
 import deskit.SimObject;
 import deskit.monitors.Change;
 import deskit.monitors.ChangesList;
@@ -25,19 +26,31 @@ public abstract class SimulationCoordinator<T> extends SimObject {
 
     private static final Logger log = LogManager.getLogger(SimulationCoordinator.class);
 
+    protected final SimManager simulationManager;
     protected final Set<SimActivity> activities;
     protected final Map<ActionKey, List<Action<T>>> actions;
     protected final MonitoredVar randomEventActionTime;
     private final Random random;
     private final boolean actionByQueueTypeEnabled;
 
-    protected SimulationCoordinator() {
+    protected SimulationCoordinator(double simulationDuration) {
+        this.simulationManager = initSimManager(simulationDuration);
         this.activities = ConcurrentHashMap.newKeySet();
         this.actions = new ConcurrentHashMap<>();
         this.randomEventActionTime = new MonitoredVar(this);
         this.random = new Random();
         this.actionByQueueTypeEnabled = false;
     }
+
+    private SimManager initSimManager(double simulationDuration) {
+        SimManager simManager = SimManager.getSimManager();
+        simManager.setSimTime(0.0);
+        simManager.setStopTime(simulationDuration);
+
+        return simManager;
+    }
+
+    public abstract void startSimulation();
 
     public MonitoredVar getRandomEventActionTime() {
         return randomEventActionTime;
