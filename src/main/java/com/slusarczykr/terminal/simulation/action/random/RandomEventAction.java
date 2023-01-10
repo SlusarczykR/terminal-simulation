@@ -12,6 +12,7 @@ public class RandomEventAction<T> extends AbstractAction<T> {
 
     private static int indexOffset = 0;
 
+    private boolean executed;
     private final ActionKey actionKey;
     private final ActionKey nextActionKey;
     private final T element;
@@ -52,6 +53,24 @@ public class RandomEventAction<T> extends AbstractAction<T> {
         await(delay);
         log.debug("Random event: '{}' finished for: '{}'", actionKey, element);
         callNextAction(element);
+        markExecuted();
+    }
+
+    public boolean isExecuted() {
+        return executed;
+    }
+
+    public void markExecuted() {
+        this.executed = true;
+    }
+
+    @Override
+    public void terminateAction() {
+        try {
+            terminate();
+        } catch (Exception e) {
+            getLogger().error("Exception thrown during activity termination", e);
+        }
     }
 
     @Override

@@ -35,4 +35,7 @@ public interface Action<T> {
     default void setActionTime(double delay) {
         getActionTime().setValue(delay);
     }
+
+    default void terminateAction() {
+    }
 }

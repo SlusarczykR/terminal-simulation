@@ -3,6 +3,7 @@ package com.slusarczykr.terminal.simulation.coordinator;
 import com.slusarczykr.terminal.simulation.action.Action;
 import com.slusarczykr.terminal.simulation.action.ActionKey;
 import com.slusarczykr.terminal.simulation.action.queue.ActionQueueState;
+import com.slusarczykr.terminal.simulation.action.random.RandomEventAction;
 import deskit.SimActivity;
 import deskit.SimManager;
 import deskit.SimObject;
@@ -12,6 +13,7 @@ import deskit.monitors.MonitoredVar;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -27,7 +29,7 @@ public abstract class SimulationCoordinator<T> extends SimObject {
     private static final Logger log = LogManager.getLogger(SimulationCoordinator.class);
 
     protected final SimManager simulationManager;
-    protected final Set<SimActivity> activities;
+    protected final Set<Action<T>> startedActions;
     protected final Map<ActionKey, List<Action<T>>> actions;
     protected final MonitoredVar randomEventActionTime;
     private final Random random;
@@ -35,7 +37,7 @@ public abstract class SimulationCoordinator<T> extends SimObject {
 
     protected SimulationCoordinator(double simulationDuration) {
         this.simulationManager = initSimManager(simulationDuration);
-        this.activities = ConcurrentHashMap.newKeySet();
+        this.startedActions = ConcurrentHashMap.newKeySet();
         this.actions = new ConcurrentHashMap<>();
         this.randomEventActionTime = new MonitoredVar(this);
         this.random = new Random();
@@ -64,30 +66,57 @@ public abstract class SimulationCoordinator<T> extends SimObject {
         this.randomEventActionTime.setValue(delay);
     }
 
-    public void call(ActionKey actionKey) {
-        getAction(actionKey).call();
-    }
-
     public boolean isSimulationRunning() {
         return simManager.getSimTime() <= simManager.getStopTime()
                 && simManager.getFirstSimObjectFromPendingList() != null;
     }
 
-    public void addActivity(SimActivity activity) {
-        this.activities.add(activity);
+    public Set<Action<T>> getStartedActions() {
+        return startedActions;
+    }
+
+    public void addStartedActions(Action<T> action) {
+        this.startedActions.add(action);
+    }
+
+    public void removeStartedActions(Collection<Action<T>> actions) {
+        this.startedActions.removeAll(actions);
+    }
+
+    public void removeExecutedRandomEventActions() {
+        List<Action<T>> executedRandomEventActions = findExecutedRandomEventActions();
+        executedRandomEventActions.forEach(Action::terminateAction);
+        removeStartedActions(executedRandomEventActions);
+    }
+
+    private List<Action<T>> findExecutedRandomEventActions() {
+        return getStartedActions().stream()
+                .filter(it -> {
+                    if (it instanceof RandomEventAction) {
+                        return ((RandomEventAction<T>) it).isExecuted();
+                    }
+                    return false;
+                })
+                .collect(Collectors.toList());
     }
 
     public void stop() {
-        activities.stream()
+        getAliveThreads().forEach(it -> {
+            try {
+                it.resumeActivity();
+                it.terminate();
+            } catch (Exception e) {
+                log.error("Exception thrown during activity termination", e);
+            }
+        });
+    }
+
+    private List<SimActivity> getAliveThreads() {
+        return startedActions.stream()
+                .filter(SimActivity.class::isInstance)
+                .map(SimActivity.class::cast)
                 .filter(Thread::isAlive)
-                .forEach(it -> {
-                    try {
-                        it.resumeActivity();
-                        it.terminate();
-                    } catch (Exception e) {
-                        log.error("Exception thrown during activity termination", e);
-                    }
-                });
+                .collect(Collectors.toList());
     }
 
     public List<Action<T>> getActionInstances(ActionKey actionKey) {

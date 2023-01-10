@@ -43,7 +43,7 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
         if (isSimulationRunning()) {
             try {
                 callActivity(simulationCoordinator, this);
-                simulationCoordinator.addActivity(this);
+                simulationCoordinator.addStartedActions(this);
             } catch (Exception e) {
                 getLogger().error("Exception thrown during action execution", e);
             }
@@ -68,7 +68,7 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
         Optional<ActionKey> randomNextActionKey = getRandomNextActionKey();
 
         if (randomNextActionKey.isPresent()) {
-            Action<T> nextAction = new RandomEventAction<>(simulationCoordinator, randomNextActionKey.get(), nextActionKey, element);
+            Action<T> nextAction = createRandomEventAction(randomNextActionKey.get(), nextActionKey, element);
             nextAction.call();
         } else {
             Action<T> nextAction = simulationCoordinator.getAction(nextActionKey);
@@ -80,6 +80,11 @@ public abstract class AbstractAction<T> extends SimActivity implements Action<T>
                 nextAction.call();
             }
         }
+    }
+
+    private RandomEventAction<T> createRandomEventAction(ActionKey randomNextActionKey, ActionKey nextActionKey, T element) {
+        simulationCoordinator.removeExecutedRandomEventActions();
+        return new RandomEventAction<>(simulationCoordinator, randomNextActionKey, nextActionKey, element);
     }
 
     protected abstract Logger getLogger();

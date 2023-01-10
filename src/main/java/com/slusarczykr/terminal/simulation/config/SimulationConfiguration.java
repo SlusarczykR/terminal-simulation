@@ -14,7 +14,7 @@ import static com.slusarczykr.terminal.simulation.action.ActionKey.SECURITY_CHEC
 public class SimulationConfiguration {
 
     private static final int DEFAULT_SIMULATION_DURATION = 60;
-    private static final int MIN_SIMULATION_DURATION = 30;
+    private static final int MIN_SIMULATION_DURATION = 60;
     private static final int MAX_SIMULATION_DURATION = 600;
     private static final int DEFAULT_MAX_FLIGHTS_NUMBER = 10;
     private static final int MIN_FLIGHTS_NUMBER = 3;

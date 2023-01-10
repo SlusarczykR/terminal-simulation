@@ -119,6 +119,7 @@ public class TerminalSimulation {
 
     private static void setSimulationActionsInstances(SimulationConfiguration simulationConfig) {
         try {
+            getUserInputAndExecute("Generate passenger action queues:", it -> simulationConfig.setActionInstances(GENERATE_PASSENGER, Integer.parseInt(it)));
             getUserInputAndExecute("Check in action queues:", it -> simulationConfig.setActionInstances(CHECK_IN, Integer.parseInt(it)));
             getUserInputAndExecute("Security check action queues", it -> simulationConfig.setActionInstances(SECURITY_CHECK, Integer.parseInt(it)));
         } catch (Exception e) {
@@ -235,14 +236,18 @@ public class TerminalSimulation {
     }
 
     private static void generateAverageStatistics(TerminalSimulationCoordinator simulationCoordinator) {
-        double averageCheckInTime = calculateAverageTime(simulationCoordinator.getActionTime(CHECK_IN));
-        double averageSecurityCheckTime = calculateAverageTime(simulationCoordinator.getActionTime(SECURITY_CHECK));
-        log.info("Average passenger waiting time: {}ms, service time: {}ms", averageCheckInTime, averageSecurityCheckTime);
+        String averageTimeLogEntry = ALLOWED_ACTIONS.stream()
+                .map(it -> String.format("'%s' action time: %.2f ms", it.name(), calculateAverageTime(getActionTime(simulationCoordinator, it))))
+                .collect(Collectors.joining(", "));
+        log.info("Average {}", averageTimeLogEntry);
     }
 
     private static double calculateAverageTime(MonitoredVar monitoredVar) {
-        double arithmeticMean = Statistics.arithmeticMean(monitoredVar);
-        return BigDecimal.valueOf(arithmeticMean).setScale(2, HALF_UP).doubleValue();
+        if (monitoredVar.getChanges().size() > 0) {
+            double arithmeticMean = Statistics.arithmeticMean(monitoredVar);
+            return BigDecimal.valueOf(arithmeticMean).setScale(2, HALF_UP).doubleValue();
+        }
+        return 0.0;
     }
 
     private static void displayHistogram(TerminalSimulationCoordinator simulationCoordinator) {

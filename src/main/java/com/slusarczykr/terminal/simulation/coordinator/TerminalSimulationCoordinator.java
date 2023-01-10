@@ -100,6 +100,10 @@ public class TerminalSimulationCoordinator extends SimulationCoordinator<Passeng
         stop();
     }
 
+    private void call(ActionKey actionKey) {
+        getActionInstances(actionKey).forEach(Action::call);
+    }
+
     public MonitoredVar getDepartureFlightActionTime() {
         List<Action<?>> actions = getDepartedFlightActions();
         MonitoredVar actionTime = new MonitoredVar(this);
