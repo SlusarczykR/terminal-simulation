@@ -43,6 +43,7 @@ public class TerminalSimulation {
 
     private static final String UNSUPPORTED_OPERATION_EXCEPTION = "Unsupported operation type";
     private static final List<ActionKey> ALLOWED_ACTIONS = Arrays.asList(GENERATE_PASSENGER, CHECK_IN, SECURITY_CHECK, DEPARTURE_FLIGHT, RANDOM);
+    private static final List<ActionKey> CONFIGURABLE_ACTIONS = Arrays.asList(GENERATE_PASSENGER, CHECK_IN, SECURITY_CHECK);
 
     private static TerminalSimulationCoordinator simulationCoordinator = null;
 
@@ -90,7 +91,7 @@ public class TerminalSimulation {
 
     private static void displaySimulationConfigurationMenu(SimulationConfiguration simulationConfig) {
         while (true) {
-            log.info("\nq - Back\n1 - Overall simulation settings\n2 - Simulation actions queues\n\n");
+            log.info("\nq - Back\n1 - Overall simulation settings\n2 - Simulation actions queues\n3 - Display simulation configuration\n\n");
             String command = readUserCommand();
             log.info("\n");
 
@@ -100,11 +101,26 @@ public class TerminalSimulation {
                 setSimulationSettings(simulationConfig);
             } else if (command.equals("2")) {
                 setSimulationActionsInstances(simulationConfig);
+            } else if (command.equals("3")) {
+                displaySimulationConfiguration(simulationConfig);
             } else {
                 log.warn(UNSUPPORTED_OPERATION_EXCEPTION);
             }
             log.info("\n");
         }
+    }
+
+    private static void displaySimulationConfiguration(SimulationConfiguration simulationConfig) {
+        log.info("Overall simulation settings:");
+        log.info("Simulation duration in seconds: {}", simulationConfig.getSimulationDurationInSeconds());
+        log.info("Maximum number of simultaneous flights: {}", simulationConfig.getMaxFlightsNumber());
+        log.info("Random event probability: {}", simulationConfig.getRandomEventProbability());
+        log.info("");
+        log.info("Simulation actions settings:");
+        CONFIGURABLE_ACTIONS.forEach(actionKey -> {
+            String logEntry = String.format("'%s' action queses:", actionKey.name());
+            log.info("{} {}", logEntry, simulationConfig.getActionInstances(actionKey));
+        });
     }
 
     private static void setSimulationSettings(SimulationConfiguration simulationConfig) {
@@ -119,9 +135,10 @@ public class TerminalSimulation {
 
     private static void setSimulationActionsInstances(SimulationConfiguration simulationConfig) {
         try {
-            getUserInputAndExecute("Generate passenger action queues:", it -> simulationConfig.setActionInstances(GENERATE_PASSENGER, Integer.parseInt(it)));
-            getUserInputAndExecute("Check in action queues:", it -> simulationConfig.setActionInstances(CHECK_IN, Integer.parseInt(it)));
-            getUserInputAndExecute("Security check action queues", it -> simulationConfig.setActionInstances(SECURITY_CHECK, Integer.parseInt(it)));
+            CONFIGURABLE_ACTIONS.forEach(actionKey -> {
+                String logEntry = String.format("'%s' action queses:", actionKey.name());
+                getUserInputAndExecute(logEntry, it -> simulationConfig.setActionInstances(actionKey, Integer.parseInt(it)));
+            });
         } catch (Exception e) {
             log.error(e.getMessage());
         }
@@ -190,6 +207,7 @@ public class TerminalSimulation {
     }
 
     private static void displayGeneralSimulationStatistics(TerminalSimulationCoordinator simulationCoordinator) {
+        log.info("Simulation execution time: {}", simulationCoordinator.getSimTime());
         log.info("Generated passengers: {}", simulationCoordinator.getActionInvocations(GENERATE_PASSENGER));
         log.info("Generated random events: {}", simulationCoordinator.getRandomEventActionOccurrences());
         log.info("Departed flights: {}", simulationCoordinator.getDepartedFlightsNumber());

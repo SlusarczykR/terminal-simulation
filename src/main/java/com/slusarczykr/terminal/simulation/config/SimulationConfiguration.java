@@ -18,10 +18,10 @@ public class SimulationConfiguration {
     private static final int MAX_SIMULATION_DURATION = 600;
     private static final int DEFAULT_MAX_FLIGHTS_NUMBER = 10;
     private static final int MIN_FLIGHTS_NUMBER = 3;
-    private static final int MAX_FLIGHTS_NUMBER = 10;
+    private static final int MAX_FLIGHTS_NUMBER = 30;
     private static final double DEFAULT_RANDOM_EVENT_PROBABILITY = 0.1;
     private static final double MIN_RANDOM_EVENT_PROBABILITY = 0.01;
-    private static final double MAX_RANDOM_EVENT_PROBABILITY = 0.5;
+    private static final double MAX_RANDOM_EVENT_PROBABILITY = 1.0;
 
     private static final int MIN_ACTION_INSTANCES = 1;
     private static final int MAX_ACTION_INSTANCES = 10;
@@ -53,6 +53,10 @@ public class SimulationConfiguration {
         return simulationDuration;
     }
 
+    public double getSimulationDurationInSeconds() {
+        return convertToSeconds(simulationDuration);
+    }
+
     public void setSimulationDuration(int simulationDuration) {
         if (simulationDuration < MIN_SIMULATION_DURATION || simulationDuration > MAX_SIMULATION_DURATION) {
             throw new IllegalArgumentException(String.format("Invalid simulation duration value! Valid range: %d - %d",
@@ -63,6 +67,10 @@ public class SimulationConfiguration {
 
     private int convertToMillis(int durationInSeconds) {
         return (int) Duration.ofSeconds(durationInSeconds).toMillis();
+    }
+
+    private int convertToSeconds(int durationInMillis) {
+        return (int) Duration.ofMillis(durationInMillis).getSeconds();
     }
 
     public int getMaxFlightsNumber() {

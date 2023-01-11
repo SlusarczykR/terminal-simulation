@@ -30,6 +30,7 @@ public abstract class SimulationCoordinator<T> extends SimObject {
 
     protected final SimManager simulationManager;
     protected final Set<Action<T>> startedActions;
+    protected final Set<RandomEventAction<T>> startedRandomEventActions;
     protected final Map<ActionKey, List<Action<T>>> actions;
     protected final MonitoredVar randomEventActionTime;
     private final Random random;
@@ -38,6 +39,7 @@ public abstract class SimulationCoordinator<T> extends SimObject {
     protected SimulationCoordinator(double simulationDuration) {
         this.simulationManager = initSimManager(simulationDuration);
         this.startedActions = ConcurrentHashMap.newKeySet();
+        this.startedRandomEventActions = ConcurrentHashMap.newKeySet();
         this.actions = new ConcurrentHashMap<>();
         this.randomEventActionTime = new MonitoredVar(this);
         this.random = new Random();
@@ -75,28 +77,30 @@ public abstract class SimulationCoordinator<T> extends SimObject {
         return startedActions;
     }
 
+    public Set<RandomEventAction<T>> getStartedRandomEventActions() {
+        return startedRandomEventActions;
+    }
+
     public void addStartedActions(Action<T> action) {
+        if (action instanceof RandomEventAction) {
+            this.startedRandomEventActions.add((RandomEventAction<T>) action);
+        }
         this.startedActions.add(action);
     }
 
-    public void removeStartedActions(Collection<Action<T>> actions) {
-        this.startedActions.removeAll(actions);
-    }
-
     public void removeExecutedRandomEventActions() {
-        List<Action<T>> executedRandomEventActions = findExecutedRandomEventActions();
+        List<RandomEventAction<T>> executedRandomEventActions = findExecutedRandomEventActions();
         executedRandomEventActions.forEach(Action::terminateAction);
-        removeStartedActions(executedRandomEventActions);
+        removeRandomEventActions(executedRandomEventActions);
     }
 
-    private List<Action<T>> findExecutedRandomEventActions() {
-        return getStartedActions().stream()
-                .filter(it -> {
-                    if (it instanceof RandomEventAction) {
-                        return ((RandomEventAction<T>) it).isExecuted();
-                    }
-                    return false;
-                })
+    public void removeRandomEventActions(Collection<RandomEventAction<T>> actions) {
+        this.startedRandomEventActions.removeAll(actions);
+    }
+
+    private List<RandomEventAction<T>> findExecutedRandomEventActions() {
+        return getStartedRandomEventActions().stream()
+                .filter(RandomEventAction::isExecuted)
                 .collect(Collectors.toList());
     }
 
