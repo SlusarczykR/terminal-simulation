@@ -254,10 +254,9 @@ public class TerminalSimulation {
     }
 
     private static void generateAverageStatistics(TerminalSimulationCoordinator simulationCoordinator) {
-        String averageTimeLogEntry = ALLOWED_ACTIONS.stream()
-                .map(it -> String.format("'%s' action time: %.2f ms", it.name(), calculateAverageTime(getActionTime(simulationCoordinator, it))))
-                .collect(Collectors.joining(", "));
-        log.info("Average {}", averageTimeLogEntry);
+        ALLOWED_ACTIONS.stream()
+                .map(it -> String.format("Average '%s' action time: %.2f ms", it.name(), calculateAverageTime(getActionTime(simulationCoordinator, it))))
+                .forEach(it -> log.info("{}", it));
     }
 
     private static double calculateAverageTime(MonitoredVar monitoredVar) {
